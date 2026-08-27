@@ -1,18 +1,29 @@
 # read-book-to-skill — 读书封装 Skill 流程
 
+> **🌐 Language / 语言：** [中文](README.md) | [English](README_EN.md)
+
 > 把一本书/一份 PDF 变成 AI Agent 可复用的 Skill 的完整流水线：
 > **安装 MinerU（OCR 解析）→ 识别 PDF → 提炼方法论 → 封装成 Skill**
+>
+> A complete pipeline that turns a book / PDF into a reusable AI Agent Skill:
+> **Install MinerU (OCR) → Parse PDF → Distill methodology → Package as a Skill**
 
-这套流程由 CC（Hermes Agent）在 2026-08-27 实测跑通：将《Refactoring UI》（252 页 PDF）成功封装为 `refactoring-ui-principles` skill。
+这套流程由 CC（Hermes Agent）在 2026-08-27 实测跑通：将《Refactoring UI》（252 页 PDF）成功封装为 `refactoring-ui-principles` skill，并已在**另一台电脑上使用 opencode + GLM 5.3 Flash 做了效果对比验证**（见下方案例 Demo）。
 
 ## 📦 仓库结构
 
 ```
 read-book-to-skill/
-├── README.md                                    # 本文件：流程总览 + 依赖说明
-└── skills/
-    ├── mineru-pdf-parser/SKILL.md               # 【前置依赖 1】MinerU PDF 解析（安装/下载/踩坑）
-    └── read-book-to-skill/SKILL.md              # 【主流程】读书 → 封装 Skill 的 6 步流水线
+├── README.md                                    # 中文文档（本文件）
+├── README_EN.md                                 # English version
+├── skills/
+│   ├── mineru-pdf-parser/SKILL.md               # 【前置依赖 1】MinerU PDF 解析（安装/下载/踩坑）
+│   └── read-book-to-skill/SKILL.md              # 【主流程】读书 → 封装 Skill 的 6 步流水线
+├── examples/
+│   └── refactoring-ui-principles/               # 【案例 Demo】本流程产出的成品 skill
+│       ├── SKILL.md                             #    《Refactoring UI》设计原则速查
+│       └── references/refactoring-ui-full.md    #    全书全文存档（58 条原则）
+└── docs/images/                                 # 案例对比截图（no-skill vs skill）
 ```
 
 ## 🔄 完整流程
@@ -82,10 +93,47 @@ mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
 | 模型 sha256 验证 | resolve URL `?download=true` HEAD 的 `x-linked-etag` 即官方哈希 |
 | Skill description 超 60 字符被拒 | 触发词前置，一句话 ≤60 字符 |
 
-## 🧪 验证过的成品
+## 🧪 案例 Demo：Refactoring UI → skill 实战对比
 
-- **refactoring-ui-principles**：由本流程生成的示例 skill（《Refactoring UI》设计原则速查 + 全书存档）
-- 252 页 PDF 全量解析：EXIT=0，输出 181MB（md + model.json + span.pdf + images）
+> 完整 demo skill 在本仓库 `examples/refactoring-ui-principles/`，可直接安装使用。
+> The full demo skill lives in `examples/refactoring-ui-principles/` — install & use it directly.
+
+### 测试方法
+
+在**另一台电脑**（Windows）上，使用 **opencode + GLM 5.3 Flash 模型**，用**同一套关键词**（设计一个企业官网首页：顶部导航 / Hero / 6 个功能特性 / 数据成绩 / 3 条客户评价 / CTA / 页脚，单文件静态 HTML+CSS）分别生成两个版本：
+
+- **`no-skill`**：纯提示词直接生成（不加载任何 skill）
+- **`skill`**：加载本流程产出的 `refactoring-ui-principles` skill 后再生成
+
+### 对比结果
+
+**页面顶部（Hero 区）：**
+
+![对比-顶部](docs/images/demo-compare-top.png)
+
+**页面底部（CTA + 页脚）：**
+
+![对比-底部](docs/images/demo-compare-bottom.png)
+
+**`no-skill` 版本（无 skill）：**
+
+![no-skill 顶部](docs/images/demo-noskill-top.png)
+![no-skill 功能区](docs/images/demo-noskill-features.png)
+
+**`skill` 版本（加载 refactoring-ui-principles）：**
+
+![skill 底部](docs/images/demo-skill-bottom.png)
+
+### 效果差异
+
+| 维度 | no-skill（无 skill） | skill（加载 refactoring-ui-principles） |
+|------|---------------------|------------------------------------------|
+| 标题文案 | 「让团队协作更高效」（通用） | 「让每一次协作都有迹可循」（有记忆点） |
+| 视觉层级 | 渐变横幅 + 平铺卡片 | 品牌圆点 + 产品示意插画 + 更清晰的层级 |
+| CTA 区 | 常规按钮 | 「免费开始试用 / 了解产品功能」+ 14 天体验说明 |
+| 细节质感 | 模板感明显 | 间距/对比/深度符合设计原则 |
+
+**结论**：加载了从书里蒸馏出的设计原则 skill 后，同一模型、同一关键词生成的页面在**文案记忆点、视觉层级、细节质感**上都有明显提升——这就是「读书封装 skill」的价值：**把一本书的方法论，变成每次生成都能自动生效的能力。**
 
 ## 🙏 依赖项目与致谢
 
