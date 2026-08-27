@@ -2,7 +2,7 @@
 name: mineru-pdf-parser
 description: 用 MinerU 解析 PDF 为 Markdown/JSON 时用。含国内模型下载、M1 内存调优、踩坑速查。
 version: 1.0.0
-author: Hermes Agent (CC)
+author: CC
 tags: [mineru, pdf, ocr, parsing, 文档解析]
 ---
 

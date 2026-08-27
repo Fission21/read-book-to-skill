@@ -2,7 +2,7 @@
 name: read-book-to-skill
 description: 主人发 PDF/电子书/视频链接要封装成 skill 时用。MinerU 解析→通读→提炼速查 + 全文存档。
 version: 1.1.0
-author: Hermes Agent (CC)
+author: CC
 tags: [book, skill, 读书, pdf, video, 提炼, workflow]
 ---
 
