@@ -107,13 +107,6 @@ mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
 
 ### 对比结果
 
-**页面顶部（Hero 区）：**
-
-![对比-顶部](docs/images/demo-compare-top.png)
-
-**页面底部（CTA + 页脚）：**
-
-![对比-底部](docs/images/demo-compare-bottom.png)
 
 **`no-skill` 版本（无 skill）：**
 
@@ -124,6 +117,13 @@ mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
 
 ![skill 底部](docs/images/demo-skill-bottom.png)
 
+
+
+![对比](docs/images/demo-compare-top.png)
+
+**页面底部（CTA + 页脚）：**
+
+![对比-底部](docs/images/demo-compare-bottom.png)
 ### 效果差异
 
 | 维度 | no-skill（无 skill） | skill（加载 refactoring-ui-principles） |
