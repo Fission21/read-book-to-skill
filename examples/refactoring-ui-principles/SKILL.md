@@ -2,7 +2,7 @@
 name: refactoring-ui-principles
 description: 设计/美化界面视觉时用：层级、间距、色彩、排版、阴影决策速查（Refactoring UI 方法论）。
 version: 1.0.0
-author: Hermes Agent (CC)
+author: CC
 tags: [design, ui, css, refactoring-ui, 设计原则, 视觉]
 ---
 
