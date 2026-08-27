@@ -108,7 +108,7 @@ mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
 ### 对比结果
 
 
-**左侧无skil 右侧使用：**
+**左侧无skill 右侧使用：**
 
 ![no-skill 顶部](docs/images/demo-noskill-top.png)
 ![no-skill 功能区](docs/images/demo-noskill-features.png)
