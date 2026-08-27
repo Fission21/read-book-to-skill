@@ -6,7 +6,10 @@
 > **Install MinerU (OCR) → Parse PDF → Distill methodology → Package as a Skill**
 > Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
 
-This pipeline was proven end-to-end by CC (Hermes Agent) on 2026-08-27: a 252-page PDF of *Refactoring UI* was successfully packaged into the `refactoring-ui-principles` skill — and validated on **another machine using opencode + GLM 5.3 Flash** with a controlled A/B test (see Demo below).
+This pipeline was proven end-to-end by **CC** on 2026-08-27, with two case studies:
+
+1. ***Refactoring UI* (252-page PDF)** → packaged into the `refactoring-ui-principles` skill — validated on **another machine using opencode + GLM 5.3 Flash** with a controlled A/B test (see Demo 1 below)
+2. **YouTube Chinese tech tutorial video (8:45)** → processed via video mode (yt-dlp → faster-whisper → LLM correction) into the `minimax-h3-local-deploy` skill (see Demo 2 below)
 
 ## 📦 Repository Layout
 
@@ -16,11 +19,13 @@ read-book-to-skill/
 ├── README_EN.md                                 # English version (this file)
 ├── skills/
 │   ├── mineru-pdf-parser/SKILL.md               # [Prerequisite 1] MinerU PDF parsing (install/download/pitfalls)
-│   └── read-book-to-skill/SKILL.md              # [Main flow] 6-step pipeline: book → Skill
+│   └── read-book-to-skill/SKILL.md              # [Main flow] book/video → Skill pipeline
+│       └── scripts/llm_fix.py                   # ASR transcript LLM correction script
 ├── examples/
-│   └── refactoring-ui-principles/               # [Demo] the skill produced by this pipeline
+│   └── refactoring-ui-principles/               # [Demo 1] PDF-distilled skill
 │       ├── SKILL.md                             #    Refactoring UI design-principles cheat sheet
 │       └── references/refactoring-ui-full.md    #    Full book archive (58 principles)
+│       (Demo 2: the video-distilled minimax-h3-local-deploy skill is published alongside)
 └── docs/images/                                 # A/B comparison screenshots (no-skill vs skill)
 ```
 
@@ -130,6 +135,37 @@ On **another machine (Windows)**, using **opencode + GLM 5.3 Flash**, we ran the
 | Polish | obvious template feel | spacing/contrast/depth follow the book's rules |
 
 **Takeaway**: with the same model and the same prompt, loading a skill distilled from a book measurably improves the output — memorable copy, better visual hierarchy, and real polish. That's the value of this pipeline: **a book's methodology becomes capability that applies automatically on every generation.**
+
+### 🎬 Demo 2: Video Distillation in Action (Chinese tutorial → skill)
+
+**Test video**: a YouTube Chinese tech tutorial (8:45) packed with technical terms (MiniMax H3, ComfyUI, jailbroken model, text encoder…), **no subtitles available** — pure ASR path only, a stress test for transcription quality.
+
+**Pipeline**:
+
+```
+YouTube link
+  → yt-dlp download (199MB, ~50s)
+  → ffmpeg audio extraction (16kHz wav)
+  → faster-whisper small + initial_prompt term hints (105s)
+  → deepseek-v4-flash LLM post-correction (20s)   ← the key step
+  → read all 93 segments → classify as step-guide → package as skill
+```
+
+**Three-way benchmark** (same video):
+
+| Approach | MiniMax | 越狱(jailbreak) | ComfyUI | Channel name | Total time |
+|----------|:---:|:---:|:---:|:---:|:---:|
+| small, no hints | ❌0 | ❌ misheard | ❌0 | ❌ misheard | 2min |
+| medium model alone | ⚠️4 | ⚠️2 | ❌ still 0 | ✅3 | ⏱48min |
+| **small + hints + LLM fix** 🏆 | ✅9 | ✅9 | ✅3 | ✅4 | **2min20s** |
+
+**Key findings**:
+1. `initial_prompt` with domain terms fixes Chinese homophone errors ("粤语模型" → "越狱模型")
+2. English brand names like ComfyUI are unfixable at the ASR layer — medium spent 48 minutes and still missed them
+3. **LLM correction nails it in one pass**: it has world knowledge about ComfyUI and correctly infers "CONVIO的DESTOB的文件夹" should be "COMFYUI的DESKTOP文件夹" — something no ASR model can do
+4. Safety verified: segment count unchanged, character ratio 1.00, timestamps preserved
+
+**Conclusion**: the optimal path for Chinese video distillation is **small fast-transcribe + LLM refine** (2 minutes total), 20× faster than running a bigger model alone while producing higher quality. The correction script is open-sourced at `skills/read-book-to-skill/scripts/llm_fix.py`.
 
 ## 🙏 Dependencies & Acknowledgements
 

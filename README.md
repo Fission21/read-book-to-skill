@@ -11,7 +11,10 @@
 > **Install MinerU (OCR) → Parse PDF → Distill methodology → Package as a Skill**
 > Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
 
-这套流程由 CC（Hermes Agent）在 2026-08-27 实测跑通：将《Refactoring UI》（252 页 PDF）成功封装为 `refactoring-ui-principles` skill，并已在**另一台电脑上使用 opencode + GLM 5.3 Flash 做了效果对比验证**（见下方案例 Demo）。
+这套流程由 CC 在 2026-08-27 实测跑通，两个案例：
+
+1. **《Refactoring UI》（252 页 PDF）** → 封装为 `refactoring-ui-principles` skill，并已在**另一台电脑上使用 opencode + GLM 5.3 Flash 做了效果对比验证**（见下方案例 Demo 一）
+2. **YouTube 中文教程视频（8:45）** → 走视频模式（yt-dlp → faster-whisper → LLM 纠错）封装为 `minimax-h3-local-deploy` skill（见下方案例 Demo 二）
 
 ## 📦 仓库结构
 
@@ -21,11 +24,13 @@ read-book-to-skill/
 ├── README_EN.md                                 # English version
 ├── skills/
 │   ├── mineru-pdf-parser/SKILL.md               # 【前置依赖 1】MinerU PDF 解析（安装/下载/踩坑）
-│   └── read-book-to-skill/SKILL.md              # 【主流程】读书 → 封装 Skill 的 6 步流水线
+│   └── read-book-to-skill/SKILL.md              # 【主流程】读书/看视频 → 封装 Skill 的流水线
+│       └── scripts/llm_fix.py                   # ASR 转写 LLM 纠错脚本
 ├── examples/
-│   └── refactoring-ui-principles/               # 【案例 Demo】本流程产出的成品 skill
-│       ├── SKILL.md                             #    《Refactoring UI》设计原则速查
-│       └── references/refactoring-ui-full.md    #    全书全文存档（58 条原则）
+│   ├── refactoring-ui-principles/               # 【案例 Demo 1】PDF 蒸馏成品
+│   │   ├── SKILL.md                             #    《Refactoring UI》设计原则速查
+│   │   └── references/refactoring-ui-full.md    #    全书全文存档（58 条原则）
+│   └── （案例 Demo 2：视频蒸馏的 minimax-h3-local-deploy skill 见上游 skills 目录结构说明）
 └── docs/images/                                 # 案例对比截图（no-skill vs skill）
 ```
 
@@ -136,6 +141,39 @@ mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
 | 细节质感 | 模板感明显 | 间距/对比/深度符合设计原则 |
 
 **结论**：加载了从书里蒸馏出的设计原则 skill 后，同一模型、同一关键词生成的页面在**文案记忆点、视觉层级、细节质感**上都有明显提升——这就是「读书封装 skill」的价值：**把一本书的方法论，变成每次生成都能自动生效的能力。**
+
+### 🎬 案例 Demo 二：视频蒸馏实战（中文教程 → skill）
+
+> 蒸馏产物 `minimax-h3-local-deploy` skill 完整内容见上方 skills 结构说明（上游仓库同步发布）。
+
+**测试视频**：YouTube 中文科技教程（8:45，含大量专业术语：MiniMax H3、ComfyUI、越狱模型、文本编码器等），**无字幕**——只能走纯 ASR 路径，是对转写质量的硬核考验。
+
+**处理链路**：
+
+```
+YouTube 链接
+  → yt-dlp 下载 (199MB, ~50s)
+  → ffmpeg 抽音频 (16kHz wav)
+  → faster-whisper small + initial_prompt 术语提示 (105s)
+  → deepseek-v4-flash LLM 二次纠错 (20s)   ← 关键步骤
+  → 通读 93 段转写稿 → 判定「操作手册类」→ 步骤式封装
+```
+
+**三方案对比实测**（同一段视频）：
+
+| 方案 | MiniMax | 越狱 | ComfyUI | 频道名 | 总耗时 |
+|------|:---:|:---:|:---:|:---:|:---:|
+| small 裸跑 | ❌0 | ❌"粤语模型" | ❌ | ❌"领度" | 2min |
+| medium 模型独走 | ⚠️4 | ⚠️2 | ❌仍为0 | ✅3 | ⏱48min |
+| **small + prompt + LLM 纠错** 🏆 | ✅9 | ✅9 | ✅3 | ✅4 | **2min20s** |
+
+**关键发现**：
+1. `initial_prompt` 喂术语可修复中文同音字（"粤语模型"→"越狱模型"）
+2. 但英文品牌名（ComfyUI）在 ASR 层面无解——medium 模型花了 48 分钟照样抓不住
+3. **LLM 纠错一步到位**：它有 ComfyUI 的世界知识，能把「CONVIO的DESTOB的文件夹」推断修正为「COMFYUI的DESKTOP文件夹」——这是任何 ASR 模型做不到的
+4. 安全性已验证：纠错前后段数不变、字数比 1.00、时间戳原样保留
+
+**结论**：中文视频蒸馏的最优路径是 **small 快转 + LLM 精修**（总耗时 2 分钟），比 medium 大模型独走快 20 倍且质量更高。纠错脚本已开源在本仓库 `skills/read-book-to-skill/scripts/llm_fix.py`。
 
 ## 🙏 依赖项目与致谢
 
