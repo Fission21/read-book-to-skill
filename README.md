@@ -87,6 +87,24 @@ mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
 - **refactoring-ui-principles**：由本流程生成的示例 skill（《Refactoring UI》设计原则速查 + 全书存档）
 - 252 页 PDF 全量解析：EXIT=0，输出 181MB（md + model.json + span.pdf + images）
 
+## 🙏 依赖项目与致谢
+
+本流程建立在这些优秀的开源项目之上，感谢它们的作者：
+
+| 依赖 | GitHub 页面 | 用途 |
+|------|-------------|------|
+| **MinerU** | https://github.com/opendatalab/MinerU | PDF 解析引擎（OCR/版面/公式/表格），本流程的核心解析工具 |
+| **PDF-Extract-Kit-1.0** | https://github.com/opendatalab/PDF-Extract-Kit | MinerU 的模型仓库（Layout/MFR/OCR/TabRec 等 7 个子模型）|
+| **book-to-skill** | https://github.com/virgiliojr94/book-to-skill | 书→Skill 转换的启发来源（面向 Copilot/Amp/Claude Code 生态；本仓库是其 Hermes 专属的速查式变体）|
+| **aria2** | https://github.com/aria2/aria2 | 多线程下载模型（modelscope 810MB 仅 20 秒）|
+| **ModelScope** | https://github.com/modelscope/modelscope | 国内高速模型下载源 |
+| **Refactoring UI** | https://refactoringui.com | 验证用例（Adam Wathan & Steve Schoger 的设计书）|
+
+特别感谢：
+- **OpenDataLab 团队**（MinerU / PDF-Extract-Kit）——让高质量文档解析变得人人可用
+- **virgiliojr94**（book-to-skill）——"书变成 skill"这个想法的源头
+- **Adam Wathan & Steve Schoger**——本流程的第一个实测对象《Refactoring UI》
+
 ## 📄 License
 
 MIT
