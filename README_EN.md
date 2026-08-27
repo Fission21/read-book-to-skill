@@ -4,6 +4,7 @@
 
 > A complete pipeline that turns a book / PDF into a reusable AI Agent Skill:
 > **Install MinerU (OCR) → Parse PDF → Distill methodology → Package as a Skill**
+> Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
 
 This pipeline was proven end-to-end by CC (Hermes Agent) on 2026-08-27: a 252-page PDF of *Refactoring UI* was successfully packaged into the `refactoring-ui-principles` skill — and validated on **another machine using opencode + GLM 5.3 Flash** with a controlled A/B test (see Demo below).
 
@@ -29,12 +30,13 @@ read-book-to-skill/
 ┌─────────────────────────────────────────────────────────────┐
 │  ① Install MinerU + download models (China-network tuned)   │
 │     → mineru-pdf-parser skill (prerequisite 1)               │
+│  ①b Video/podcast: yt-dlp → ffmpeg audio → faster-whisper    │
 ├─────────────────────────────────────────────────────────────┤
-│  ② Parse PDF → Markdown                                     │
+│  ② Parse PDF → Markdown (or use transcript directly)        │
 │     mineru -p input.pdf -o out -b pipeline                  │
 │     (252 pages ≈ 4-6 min: md / json / span.pdf)             │
 ├─────────────────────────────────────────────────────────────┤
-│  ③ Read the book (REPL-style, TOC first → skeleton)         │
+│  ③ Read the book/transcript (REPL-style, TOC first)         │
 ├─────────────────────────────────────────────────────────────┤
 │  ④ Choose packaging form: cheat-sheet / step-guide / persona │
 ├─────────────────────────────────────────────────────────────┤

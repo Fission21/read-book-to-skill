@@ -5,8 +5,11 @@
 > 把一本书/一份 PDF 变成 AI Agent 可复用的 Skill 的完整流水线：
 > **安装 MinerU（OCR 解析）→ 识别 PDF → 提炼方法论 → 封装成 Skill**
 >
+> 支持 PDF / 电子书 / **视频 / 播客**（yt-dlp 下载 → faster-whisper 转写 → 同一蒸馏流程）
+>
 > A complete pipeline that turns a book / PDF into a reusable AI Agent Skill:
 > **Install MinerU (OCR) → Parse PDF → Distill methodology → Package as a Skill**
+> Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
 
 这套流程由 CC（Hermes Agent）在 2026-08-27 实测跑通：将《Refactoring UI》（252 页 PDF）成功封装为 `refactoring-ui-principles` skill，并已在**另一台电脑上使用 opencode + GLM 5.3 Flash 做了效果对比验证**（见下方案例 Demo）。
 
@@ -32,12 +35,13 @@ read-book-to-skill/
 ┌─────────────────────────────────────────────────────────────┐
 │  ① 安装 MinerU + 下载模型（国内网络优化）                      │
 │     → mineru-pdf-parser skill（前置依赖 1）                    │
+│  ①b 视频/播客：yt-dlp 下载 → ffmpeg 抽音频 → faster-whisper 转写 │
 ├─────────────────────────────────────────────────────────────┤
-│  ② 解析 PDF → Markdown                                       │
+│  ② 解析 PDF → Markdown（或直接使用转写文本）                   │
 │     mineru -p 输入.pdf -o 输出目录 -b pipeline                │
 │     (252 页 ≈ 4-6 分钟，输出完整 md/json/span.pdf)            │
 ├─────────────────────────────────────────────────────────────┤
-│  ③ 通读全书（REPL 式分段读，先读目录定骨架）                   │
+│  ③ 通读全书/转写稿（REPL 式分段读，先读目录定骨架）             │
 ├─────────────────────────────────────────────────────────────┤
 │  ④ 判断封装形态：速查式 / 步骤式 / 人物式                      │
 ├─────────────────────────────────────────────────────────────┤
