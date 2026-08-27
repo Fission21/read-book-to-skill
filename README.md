@@ -1,8 +1,10 @@
-# read-book-to-skill — 读书封装 Skill 流程
+# MiJi · 蜜技 — 把书、视频、播客酿成 Agent Skill 的流水线
 
 > **🌐 Language / 语言：** [中文](README.md) | [English](README_EN.md)
 
-> 把一本书/一份 PDF 变成 AI Agent 可复用的 Skill 的完整流水线：
+> 为什么叫「蜜技」？三重谐音：**秘籍**——拿到就能习得的神功；**游戏 cheat code**——输入即生效；**蜜 技**——CC 为她的诗人亲手酿的甜蜜技能 🍯
+>
+> 把一本书/一份 PDF/一段视频变成 AI Agent 可复用的 Skill 的完整流水线：
 > **安装 MinerU（OCR 解析）→ 识别 PDF → 提炼方法论 → 封装成 Skill**
 >
 > 支持 PDF / 电子书 / **视频 / 播客**（yt-dlp 下载 → faster-whisper 转写 → 同一蒸馏流程）
@@ -19,12 +21,12 @@
 ## 📦 仓库结构
 
 ```
-read-book-to-skill/
+MiJi/
 ├── README.md                                    # 中文文档（本文件）
 ├── README_EN.md                                 # English version
 ├── skills/
 │   ├── mineru-pdf-parser/SKILL.md               # 【前置依赖 1】MinerU PDF 解析（安装/下载/踩坑）
-│   └── read-book-to-skill/SKILL.md              # 【主流程】读书/看视频 → 封装 Skill 的流水线
+│   └── MiJi/SKILL.md              # 【主流程】读书/看视频 → 封装 Skill 的流水线
 │       └── scripts/llm_fix.py                   # ASR 转写 LLM 纠错脚本
 ├── examples/
 │   ├── refactoring-ui-principles/               # 【案例 Demo 1】PDF 蒸馏成品
@@ -51,7 +53,7 @@ read-book-to-skill/
 │  ④ 判断封装形态：速查式 / 步骤式 / 人物式                      │
 ├─────────────────────────────────────────────────────────────┤
 │  ⑤ 生成 SKILL.md（精炼原则+数值落地）+ 全文存档 references/    │
-│     → read-book-to-skill skill（主流程）                      │
+│     → MiJi skill（主流程）                      │
 ├─────────────────────────────────────────────────────────────┤
 │  ⑥ 验证（skill_view 加载 + 真实场景实跑）+ 交付                │
 └─────────────────────────────────────────────────────────────┘
@@ -62,7 +64,7 @@ read-book-to-skill/
 | Skill | 作用 | 依赖关系 |
 |-------|------|---------|
 | **`mineru-pdf-parser`** | MinerU 部署、模型下载（国内网络优化）、M1 Mac 调优、踩坑速查 | 主流程 Step ①/② 依赖 |
-| **`read-book-to-skill`** | 读书 → 封装 Skill 的 6 步完整流程 | 主流程本体 |
+| **`MiJi`** | 读书 → 封装 Skill 的 6 步完整流程 | 主流程本体 |
 
 主流程 skill 在 Step 1 会**先加载 `mineru-pdf-parser`** 获取环境与坑，再执行解析。两者必须一起安装。
 
@@ -85,7 +87,7 @@ export MINERU_PROCESSING_WINDOW_SIZE=32   # 长文档防 MPS 崩溃（Apple Sili
 mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
 
 # 5. 把生成的两个 SKILL.md 放入你的 Agent 的 skills 目录
-#    （Hermes: ~/.hermes/skills/；其他 Agent 见 read-book-to-skill 内的兼容说明）
+#    （Hermes: ~/.hermes/skills/；其他 Agent 见 MiJi 内的兼容说明）
 
 # 6. 对你的 Agent 说："把这本书封装成 skill"
 ```
@@ -175,7 +177,7 @@ YouTube 链接
 3. **LLM 纠错一步到位**：它有 ComfyUI 的世界知识，能把「CONVIO的DESTOB的文件夹」推断修正为「COMFYUI的DESKTOP文件夹」——这是任何 ASR 模型做不到的
 4. 安全性已验证：纠错前后段数不变、字数比 1.00、时间戳原样保留
 
-**结论**：中文视频蒸馏的最优路径是 **small 快转 + LLM 精修**（总耗时 2 分钟），比 medium 大模型独走快 20 倍且质量更高。纠错脚本已开源在本仓库 `skills/read-book-to-skill/scripts/llm_fix.py`。
+**结论**：中文视频蒸馏的最优路径是 **small 快转 + LLM 精修**（总耗时 2 分钟），比 medium 大模型独走快 20 倍且质量更高。纠错脚本已开源在本仓库 `skills/MiJi/scripts/llm_fix.py`。
 
 ## 🙏 依赖项目与致谢
 

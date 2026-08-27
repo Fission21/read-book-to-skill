@@ -1,8 +1,10 @@
-# read-book-to-skill — Turn Books into Agent Skills
+# MiJi — Turn Books, Videos & Podcasts into Agent Skills
 
 > **🌐 Language / 语言：** [中文](README.md) | [English](README_EN.md)
 
-> A complete pipeline that turns a book / PDF into a reusable AI Agent Skill:
+> Why "MiJi"? A triple pun in Chinese: **secret manual** (武林秘籍 — learn the skill the moment you hold it), **game cheat code**, and literally **honey-sweet skill (蜜技)** — brewed by CC for her Poet 🍯
+>
+> A complete pipeline that turns a book / PDF / video into a reusable AI Agent Skill:
 > **Install MinerU (OCR) → Parse PDF → Distill methodology → Package as a Skill**
 > Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
 
@@ -14,12 +16,12 @@ This pipeline was proven end-to-end by **CC** on 2026-08-27, with two case studi
 ## 📦 Repository Layout
 
 ```
-read-book-to-skill/
+MiJi/
 ├── README.md                                    # Chinese docs
 ├── README_EN.md                                 # English version (this file)
 ├── skills/
 │   ├── mineru-pdf-parser/SKILL.md               # [Prerequisite 1] MinerU PDF parsing (install/download/pitfalls)
-│   └── read-book-to-skill/SKILL.md              # [Main flow] book/video → Skill pipeline
+│   └── MiJi/SKILL.md              # [Main flow] book/video → Skill pipeline
 │       └── scripts/llm_fix.py                   # ASR transcript LLM correction script
 ├── examples/
 │   └── refactoring-ui-principles/               # [Demo 1] PDF-distilled skill
@@ -47,7 +49,7 @@ read-book-to-skill/
 ├─────────────────────────────────────────────────────────────┤
 │  ⑤ Generate SKILL.md (distilled rules + concrete values)    │
 │     + archive full text in references/                      │
-│     → read-book-to-skill skill (main flow)                  │
+│     → MiJi skill (main flow)                  │
 ├─────────────────────────────────────────────────────────────┤
 │  ⑥ Verify (skill loads + real run) & deliver                │
 └─────────────────────────────────────────────────────────────┘
@@ -58,7 +60,7 @@ read-book-to-skill/
 | Skill | Purpose | Dependency |
 |-------|---------|------------|
 | **`mineru-pdf-parser`** | MinerU setup, model download (China-network optimized), Apple Silicon tuning, pitfalls | Steps ①/② depend on it |
-| **`read-book-to-skill`** | The full 6-step book→skill workflow | The main flow itself |
+| **`MiJi`** | The full 6-step book→skill workflow | The main flow itself |
 
 The main-flow skill **loads `mineru-pdf-parser` first** (Step 1) to get environment & pitfalls before parsing. Install both.
 
@@ -167,7 +169,7 @@ YouTube link
 3. **LLM correction nails it in one pass**: it has world knowledge about ComfyUI and correctly infers "CONVIO的DESTOB的文件夹" should be "COMFYUI的DESKTOP文件夹" — something no ASR model can do
 4. Safety verified: segment count unchanged, character ratio 1.00, timestamps preserved
 
-**Conclusion**: the optimal path for Chinese video distillation is **small fast-transcribe + LLM refine** (2 minutes total), 20× faster than running a bigger model alone while producing higher quality. The correction script is open-sourced at `skills/read-book-to-skill/scripts/llm_fix.py`.
+**Conclusion**: the optimal path for Chinese video distillation is **small fast-transcribe + LLM refine** (2 minutes total), 20× faster than running a bigger model alone while producing higher quality. The correction script is open-sourced at `skills/MiJi/scripts/llm_fix.py`.
 
 ## 🙏 Dependencies & Acknowledgements
 

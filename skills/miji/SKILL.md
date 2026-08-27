@@ -1,5 +1,5 @@
 ---
-name: read-book-to-skill
+name: MiJi
 description: 主人发 PDF/电子书/视频链接要封装成 skill 时用。MinerU 解析→通读→提炼速查 + 全文存档。
 version: 1.1.0
 author: CC
@@ -176,7 +176,7 @@ references/<书名-slug>.md
 | 全文 md 有图片占位 `![](images/...)` | 存档时删掉（图片在 PDF 里，路径已失效）|
 | MinerU 默认窗口 64 长文档崩溃 | `MINERU_PROCESSING_WINDOW_SIZE=32` |
 | PYTHONPATH 污染 mineru venv | 跑前 `unset PYTHONPATH` |
-| yt-dlp 下载视频失败 | 需要代理时 `--proxy <代理地址>`（如 Clash 默认 `http://127.0.0.1:7897`，按自己的代理端口调整）；抖音 H5 路由优先 yt-dlp 兜底 |
+| yt-dlp 下载视频失败 | 需要代理时 `--proxy <代理地址>`（如 Clash: http://127.0.0.1:7897）；抖音 H5 路由优先 yt-dlp 兜底 |
 | whisper 转写中文同音字错 | **三步走**：① 字幕优先（`--write-subs`）② initial_prompt 自动喂术语（从标题 LLM 生成，"粤语模型"→"越狱模型"实测有效）③ LLM 二次纠错（ComfyUI 等英文术语 small/medium 都抓不住，LLM 能修对）|
 | medium 模型下载/转写超慢 | 1.5GB 模型 + CPU 转 8 分钟视频要 45 分钟；除非有 GPU 否则用 small+LLM纠错替代 |
 | faster-whisper 首次下载模型卡住 | HF 下载需要网络畅通：有代理就 export HTTPS_PROXY，或设 HF_ENDPOINT=https://hf-mirror.com |
