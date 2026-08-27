@@ -104,20 +104,17 @@ On **another machine (Windows)**, using **opencode + GLM 5.3 Flash**, we ran the
 
 ### Side-by-Side
 
-**Page top (Hero):**
+**Left = no-skill, right = with skill:**
 
-![compare-top](docs/images/demo-compare-top.png)
+![noskill-top](docs/images/demo-noskill-top.png)
+![noskill-features](docs/images/demo-noskill-features.png)
+![compare](docs/images/demo-compare-top.png)
 
 **Page bottom (CTA + footer):**
 
 ![compare-bottom](docs/images/demo-compare-bottom.png)
 
-**`no-skill` version:**
-
-![noskill-top](docs/images/demo-noskill-top.png)
-![noskill-features](docs/images/demo-noskill-features.png)
-
-**`skill` version:**
+**H5:**
 
 ![skill-bottom](docs/images/demo-skill-bottom.png)
 
