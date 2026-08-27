@@ -150,12 +150,14 @@ mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
 
 **处理链路**：
 
+> ⚠️ **复刻前置条件（AI 能力清单）**：① 任意 OpenAI 兼容 LLM API + key（用于自动生成转写提示词和纠错，deepseek/glm/kimi/本地 ollama 均可）② faster-whisper（`pip install faster-whisper`，CPU 可跑）③ yt-dlp ④ ffmpeg。有字幕的视频直接 `--write-subs` 拿字幕，可跳过 ①②。
+
 ```
 YouTube 链接
-  → yt-dlp 下载 (199MB, ~50s)
-  → ffmpeg 抽音频 (16kHz wav)
-  → faster-whisper small + initial_prompt 术语提示 (105s)
-  → deepseek-v4-flash LLM 二次纠错 (20s)   ← 关键步骤
+  → yt-dlp 下载音频 (199MB, ~50s)
+  → 【AI-1】LLM 从标题自动生成 initial_prompt（无需人工懂视频内容）
+  → faster-whisper small + 该提示词转写 (105s)
+  → 【AI-2】deepseek-v4-flash LLM 二次纠错 (20s)
   → 通读 93 段转写稿 → 判定「操作手册类」→ 步骤式封装
 ```
 

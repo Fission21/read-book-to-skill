@@ -45,27 +45,44 @@ export MINERU_PROCESSING_WINDOW_SIZE=32   # 长文档防 MPS 崩溃，关键！
 
 ### Step 1b — 视频/播客 → 转写文本（视频模式）
 
+**AI 能力清单（此步需要提前准备）**：
+
+| 能力 | 用在哪 | 最低要求 | 无此能力时 |
+|------|--------|---------|-----------|
+| **LLM API**（OpenAI 兼容）| ① 从标题/简介自动生成转写提示词 ② 转写稿纠错 | 任一兼容端点+key（deepseek/glm/kimi/本地 ollama 均可）| 提示词需人工手写；跳过纠错（转写质量下降）|
+| **语音识别** | 音频→文本 | faster-whisper（CPU 可跑）或 openai-whisper CLI | 无法处理无字幕视频 |
+| **yt-dlp** | 平台视频下载 | 最新版（B站/YouTube/小红书通用）| 无法获取视频 |
+| **ffmpeg** | 抽音频 | 系统自带或 brew/apt 安装 | — |
+
+> 字幕优先级最高：`yt-dlp --write-subs --sub-langs "zh,en"` 拿到字幕就**完全不需要** ASR 和 LLM 纠错，直接 Step 2。
+
 ```bash
-# ① 下载视频（B站/YouTube/抖音/小红书，yt-dlp 装于 Hermes venv）
-unset PYTHONPATH
-export HTTPS_PROXY=http://127.0.0.1:7897 HTTP_PROXY=http://127.0.0.1:7897
-~/.hermes/hermes-agent/venv/bin/yt-dlp --proxy http://127.0.0.1:7897 \
-  -f "bv*+ba/b" --merge-output-format mp4 -o "video.%(ext)s" "<视频链接>"
+# 0. 准备：安装依赖（任选其一装 whisper）
+pip install yt-dlp faster-whisper        # 推荐 faster-whisper（快4倍）
+# 或 pip install yt-dlp openai-whisper
+# ffmpeg: macOS `brew install ffmpeg` / Ubuntu `apt install ffmpeg`
 
-# ② 抽音频（16kHz 单声道 wav，whisper 最佳输入）
-ffmpeg -y -i video.mp4 -vn -ac 1 -ar 16000 audio.wav
+# ① 下载音频
+yt-dlp --proxy <代理地址,如有> -f "ba" -x --audio-format wav \
+  -o "video.%(ext)s" "<视频链接>"         # 只要音频用 -f "ba"，比带视频快得多
 
-# ③ faster-whisper 转写（⚠️ 中文必须带 initial_prompt 喂术语）
-~/.hermes/hermes-agent/venv/bin/python -c "
+# ② 【AI-1】让 LLM 从标题/简介自动生成 initial_prompt（无需人工懂视频内容）
+#    实测有效：标题里的「MiniMax H3越狱」进 prompt 后转写命中从 0 → 4+
+python3 transcribe_prompt_gen.py "<视频标题>" "<简介关键句>"
+#   输出形如: 下面是关于MiniMax H3越狱模型的教程。MiniMax H3, 越狱模型, 开源, ...
+#   没有 LLM 时: 自己看一眼标题，把专有名词手动列成一行也可
+
+# ③ faster-whisper 转写（⚠️ 中文必须带 initial_prompt，实测同音字错误大幅减少）
+python3 -c "
 from faster_whisper import WhisperModel
 model = WhisperModel('small', device='cpu', compute_type='int8')
-prompt = '下面是关于<视频主题>的教程。关键词：<领域词1>、<领域词2>。'
-segments, info = model.transcribe('audio.wav', language='zh', beam_size=5, initial_prompt=prompt)
+prompt = '<②生成的提示词>'
+segments, info = model.transcribe('video.wav', language='zh', beam_size=5, initial_prompt=prompt)
 open('transcript.txt','w').write('\n'.join(f'[{s.start:.1f}-{s.end:.1f}] {s.text.strip()}' for s in segments))
-print('语言:', info.language, '| 转写完成')
 "
 
-# ④ LLM 二次纠错（解决同音字/术语残留，必做！见下「LLM纠错步骤」）
+# ④ 【AI-2】LLM 二次纠错（修 ASR 层面无解的英文品牌名等，见下方数据表）
+python3 llm_fix.py transcript.txt transcript_fixed.txt "<视频主题提示>"
 ```
 
 - **平台支持**：B站/YouTube 直接 yt-dlp；抖音需 H5 路由（可先试 yt-dlp 兜底）；小红书同 yt-dlp
@@ -84,10 +101,10 @@ ASR 转写后**必须做二次纠错**，把带时间戳的转写稿 + 术语表
 | **small+prompt → LLM纠错** ✅ | 9 | 9 | 3 | 4 | 105s+20s |
 | medium+prompt 独走 | 4 | 2 | ❌仍为0 | 3 | ⏱2691s |
 
-- **纠错提示词要点**：给 LLM 的 system 说明「只改明显同音字/术语错、时间戳与分段结构不变、不确定保持原样不发挥」；user 里附正确术语参考表
+- **纠错提示词要点**：给 LLM 的 system 说明「只改明显同音字/术语错、时间戳与分段结构不变、不确定保持原样不发挥」；user 里附正确术语参考表（可让 LLM 先从标题自动生成，见 transcribe_prompt_gen.py）
 - **安全校验**：纠错前后段数应一致，字数比 ≈1.00（超 ±5% 说明 LLM 在篡改内容，重跑降温重试）
-- 模型用 deepseek-v4-flash 即可（本机中转站，20 秒改完 4500 字）；要求更准换 glm-5.2
-- **medium 模型别用来独走**：下载 1.5GB + CPU 45 分钟，ComfyUI 这类英文术语照样抓不住——不如 small 快转 + LLM 精修
+- 任何 OpenAI 兼容 API 均可用（deepseek/glm/kimi/ollama 本地模型等），配置见 `llm_fix.py` 顶部环境变量说明
+- **medium 模型别用来独走**：下载 1.5GB + CPU 转 8 分钟视频要 45 分钟，ComfyUI 这类英文术语照样抓不住——不如 small 快转 + LLM 精修
 
 ### Step 2 — 通读全书（REPL 式，别一次全读）
 
@@ -159,10 +176,10 @@ references/<书名-slug>.md
 | 全文 md 有图片占位 `![](images/...)` | 存档时删掉（图片在 PDF 里，路径已失效）|
 | MinerU 默认窗口 64 长文档崩溃 | `MINERU_PROCESSING_WINDOW_SIZE=32` |
 | PYTHONPATH 污染 mineru venv | 跑前 `unset PYTHONPATH` |
-| yt-dlp 下载视频失败 | 走代理 `--proxy http://127.0.0.1:7897`；抖音 H5 路由优先 yt-dlp 兜底 |
-| whisper 转写中文同音字错 | **两步走**：① initial_prompt 喂术语（"粤语模型"→"越狱模型"实测有效）② LLM 二次纠错（ComfyUI 等英文术语 small/medium 都抓不住，LLM 能修对）|
+| yt-dlp 下载视频失败 | 需要代理时 `--proxy <代理地址>`（如 Clash: http://127.0.0.1:7897）；抖音 H5 路由优先 yt-dlp 兜底 |
+| whisper 转写中文同音字错 | **三步走**：① 字幕优先（`--write-subs`）② initial_prompt 自动喂术语（从标题 LLM 生成，"粤语模型"→"越狱模型"实测有效）③ LLM 二次纠错（ComfyUI 等英文术语 small/medium 都抓不住，LLM 能修对）|
 | medium 模型下载/转写超慢 | 1.5GB 模型 + CPU 转 8 分钟视频要 45 分钟；除非有 GPU 否则用 small+LLM纠错替代 |
-| faster-whisper 首次下载模型卡住 | 记得给进程 export HTTPS_PROXY（medium 1.5GB 不走代理会挂半天）|
+| faster-whisper 首次下载模型卡住 | HF 下载需要网络畅通：有代理就 export HTTPS_PROXY，或设 HF_ENDPOINT=https://hf-mirror.com |
 | 与 book-to-skill（第三方）混淆 | 那个面向 Copilot/Amp/Claude Code，输出 chapters/glossary 结构；本 skill 是 Hermes 专属速查式 |
 | 主人找不到 skill 路径 | skill 根目录是隐藏目录，给桌面快捷方式或 Finder `Cmd+Shift+G` |
 
