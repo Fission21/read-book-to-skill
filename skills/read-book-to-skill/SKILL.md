@@ -55,14 +55,17 @@ export HTTPS_PROXY=http://127.0.0.1:7897 HTTP_PROXY=http://127.0.0.1:7897
 # ② 抽音频（16kHz 单声道 wav，whisper 最佳输入）
 ffmpeg -y -i video.mp4 -vn -ac 1 -ar 16000 audio.wav
 
-# ③ faster-whisper 转写（中文用 language='zh'，英文 'en'）
+# ③ faster-whisper 转写（⚠️ 中文必须带 initial_prompt 喂术语）
 ~/.hermes/hermes-agent/venv/bin/python -c "
 from faster_whisper import WhisperModel
 model = WhisperModel('small', device='cpu', compute_type='int8')
-segments, info = model.transcribe('audio.wav', language='zh', beam_size=5)
+prompt = '下面是关于<视频主题>的教程。关键词：<领域词1>、<领域词2>。'
+segments, info = model.transcribe('audio.wav', language='zh', beam_size=5, initial_prompt=prompt)
 open('transcript.txt','w').write('\n'.join(f'[{s.start:.1f}-{s.end:.1f}] {s.text.strip()}' for s in segments))
 print('语言:', info.language, '| 转写完成')
 "
+
+# ④ LLM 二次纠错（解决同音字/术语残留，必做！见下「LLM纠错步骤」）
 ```
 
 - **平台支持**：B站/YouTube 直接 yt-dlp；抖音需 H5 路由（可先试 yt-dlp 兜底）；小红书同 yt-dlp
@@ -70,6 +73,21 @@ print('语言:', info.language, '| 转写完成')
 - **中文质量**：small 可用（STT 已实测），追求高准确率用 medium；`--asr-prompt` 可喂领域关键词纠音
 - **字幕优先**：B站/YouTube 有字幕时直接 `--write-subs --sub-langs "zh,en"` 更准更快，ASR 兜底
 - 产出 `transcript.txt` 后走 Step 2 起同一蒸馏流程
+
+#### LLM 纠错步骤（中文视频必做）
+
+ASR 转写后**必须做二次纠错**，把带时间戳的转写稿 + 术语表喂给 LLM 修正。实测数据（8:45 中文教程视频）：
+
+| 方案 | MiniMax | 越狱 | ComfyUI | 零度解说 | 转写耗时 |
+|------|:---:|:---:|:---:|:---:|:---:|
+| small 无提示词 | 0❌ | 0❌（写成"粤语"）| 0❌ | 0❌（"领度"）| 105s |
+| **small+prompt → LLM纠错** ✅ | 9 | 9 | 3 | 4 | 105s+20s |
+| medium+prompt 独走 | 4 | 2 | ❌仍为0 | 3 | ⏱2691s |
+
+- **纠错提示词要点**：给 LLM 的 system 说明「只改明显同音字/术语错、时间戳与分段结构不变、不确定保持原样不发挥」；user 里附正确术语参考表
+- **安全校验**：纠错前后段数应一致，字数比 ≈1.00（超 ±5% 说明 LLM 在篡改内容，重跑降温重试）
+- 模型用 deepseek-v4-flash 即可（本机中转站，20 秒改完 4500 字）；要求更准换 glm-5.2
+- **medium 模型别用来独走**：下载 1.5GB + CPU 45 分钟，ComfyUI 这类英文术语照样抓不住——不如 small 快转 + LLM 精修
 
 ### Step 2 — 通读全书（REPL 式，别一次全读）
 
@@ -142,7 +160,9 @@ references/<书名-slug>.md
 | MinerU 默认窗口 64 长文档崩溃 | `MINERU_PROCESSING_WINDOW_SIZE=32` |
 | PYTHONPATH 污染 mineru venv | 跑前 `unset PYTHONPATH` |
 | yt-dlp 下载视频失败 | 走代理 `--proxy http://127.0.0.1:7897`；抖音 H5 路由优先 yt-dlp 兜底 |
-| whisper 转写中文同音字错 | small 换 medium；或先下字幕（`--write-subs`）比 ASR 更准 |
+| whisper 转写中文同音字错 | **两步走**：① initial_prompt 喂术语（"粤语模型"→"越狱模型"实测有效）② LLM 二次纠错（ComfyUI 等英文术语 small/medium 都抓不住，LLM 能修对）|
+| medium 模型下载/转写超慢 | 1.5GB 模型 + CPU 转 8 分钟视频要 45 分钟；除非有 GPU 否则用 small+LLM纠错替代 |
+| faster-whisper 首次下载模型卡住 | 记得给进程 export HTTPS_PROXY（medium 1.5GB 不走代理会挂半天）|
 | 与 book-to-skill（第三方）混淆 | 那个面向 Copilot/Amp/Claude Code，输出 chapters/glossary 结构；本 skill 是 Hermes 专属速查式 |
 | 主人找不到 skill 路径 | skill 根目录是隐藏目录，给桌面快捷方式或 Finder `Cmd+Shift+G` |
 
