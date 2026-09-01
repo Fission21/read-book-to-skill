@@ -199,6 +199,39 @@ YouTube link
 
 Two hard limits validated along the way: **2 workers = 2.1× speedup**; **4 workers crash 2/4** (MPS memory accumulation) — the sweet spot on Apple Silicon 32GB is exactly two parallel workers.
 
+### ☁️ Demo 4: dual-engine head-to-head — local OCR vs cloud VLM (cost $2.51)
+
+The same 484-page scanned book, parsed **in full by both engines**, then compared rigorously (2026-09-01):
+
+| Engine | Setup | Time | Result | Cost |
+|--------|-------|------|--------|------|
+| 🖥 MinerU local (pipeline) | M1 Pro, single process | 22.4 min | 484/484 ✅ | electricity |
+| ☁️ GPT-5.6-luna vision transcription | **6 concurrent API calls** | 46 min | **484/484 ✅, zero failures, zero retries** | **$2.51** (≈0.5¢/page) |
+
+**Quality comparison (whole-book, not sampled)**:
+
+| Dimension | Local MinerU | Cloud luna |
+|-----------|--------------|------------|
+| Character-level agreement | — | **~97%** (10-char sliding window 75.5% → back-computed; remainder is homophone/paraphrase-level drift) |
+| Chinese chars | 276,727 | 294,230 (+6.3%: page numbers transcribed 479 lines + fuller footnotes + light polishing) |
+| Illustrations | **36 battle diagrams extracted, searchable in the KB** | **0 (all lost)** |
+| Footnote markers | 156 | 303 (it even caught in-text footnote marks the layout filter dropped → can backfill the local result) |
+| Hallucination/meta-speak | none | only 2 pages say "图中" in reasonable context — **no fabrication observed** |
+
+**Three takeaways**:
+1. **Accuracy is a tie, with different strengths**: luna nails harder glyphs (「不与」 where local OCR misread 「不同」) but paraphrases a little — for faithful archival, local is safer
+2. **The cloud's real edge is concurrency**: local is capped at 2 workers by MPS (2.1× ceiling); 20 cloud workers could squeeze 46 min into under 10 — for money
+3. **Illustrated books belong to local**: luna produces zero images; all 36 battle diagrams came from MinerU
+
+**Reproduce** (scripts in `tools/`, resumable; token limit ≥4000 or it truncates):
+
+```bash
+# cloud full transcription (6 concurrent workers)
+mineru-venv/bin/python tools/luna_full_transcribe.py book.pdf outdir --workers 6
+# dual-engine comparison (char agreement / hallucination scan / page-length distribution)
+python3 tools/compare_deep.py
+```
+
 ## 📚 Knowledge-Base Mode (v1.3.0)
 
 MiJi doesn't have to produce one-shot skills — the same parse → distill pipeline can **keep distilling into topic folders**, building a personal knowledge base:
