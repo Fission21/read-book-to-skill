@@ -121,22 +121,38 @@ def topic_stats(t):
 
 # ---------------- TOC（超长文本跳读锚点） ----------------
 HEAD_RE = re.compile(r'^(#{1,4})\s+(.{3,80})\s*$')
+NUM_RULE_RE = re.compile(r'^\s*(\d{1,3})\s*[｜|]\s*(.{2,70})\s*$')          # 01｜先问目的…
+CHAPTER_RE = re.compile(r'^(第[一二三四五六七八九十百零\d]+[章节编部分])\s*(.{0,45})$')  # 第十九节 …
+
 
 def build_toc(t, src):
-    """为单个源生成 .toc.md：标题 + 行号，供 REPL 式按行号跳读"""
+    """为单个源生成 .toc.md：标题/章节/编号规则 → 行号，供 REPL 式按行号跳读。
+    原则：长文档不可怕，不可定位才可怕——三种锚点保任何长文可跳读。"""
     p = os.path.join(sdir(t), src['file'])
+    text = read(p)
     entries = []
-    for i, line in enumerate(read(p).splitlines(), 1):
-        m = HEAD_RE.match(line.strip())
+    for i, line in enumerate(text.splitlines(), 1):
+        ls = line.strip()
+        if not ls:
+            continue
+        m = HEAD_RE.match(ls)
         if m and len(m.group(2)) > 2:
             entries.append((i, len(m.group(1)), m.group(2).strip()))
+            continue
+        if CHAPTER_RE.match(ls) and len(ls) <= 50:
+            entries.append((i, 1, ls))
+            continue
+        if NUM_RULE_RE.match(ls):
+            entries.append((i, 2, ls[:70]))
+    entries = entries[:300]
     if len(entries) < 3:
         return 0
-    out = ['# TOC — %s（标题 → 行号，read_file(offset=行号) 跳读）\n' % src['name']]
-    last = -1
+    kws = miji_keywords(text, 10)
+    out = ['# TOC — %s（锚点 → 行号，read_file(offset=行号) 跳读）\n' % src['name']]
+    if kws:
+        out.insert(1, '> 快速定位关键词: %s\n' % ', '.join(kws[:10]))
     for ln, lv, title in entries:
         out.append('%s- L%d  %s' % ('  ' * (lv - 1), ln, title))
-        last = ln
     write(os.path.join(sdir(t), src['file'] + '.toc.md'), '\n'.join(out) + '\n')
     return len(entries)
 
