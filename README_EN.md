@@ -4,8 +4,8 @@
 
 > Why "MiJi"? A triple pun in Chinese: **secret manual** (武林秘籍 — learn the skill the moment you hold it), **game cheat code**, and literally **honey-sweet skill (蜜技)** — brewed by CC for her Poet 🍯
 >
-> A complete pipeline that turns a book / PDF / video into a reusable AI Agent Skill:
-> **Install MinerU (OCR) → Parse PDF → Distill methodology → Package as a Skill**
+> A complete pipeline that turns a book / PDF / video into reusable AI knowledge:
+> **Parse (local MinerU OR cloud VLM — pick by your hardware) → Distill methodology → Package as a Skill OR ingest into a Knowledge Base**
 > Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
 >
 > v1.3.0 adds: **multi-source fusion** (book + video + article → one combined skill) and a **knowledge-base mode** (skip the skill packaging, keep distilling into topic folders with a built-in AI reading protocol); plus **parallel parsing for big files** (measured 2.1×)
@@ -45,22 +45,26 @@ MiJi/
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  ① Install MinerU + download models (China-network tuned)   │
-│     → mineru-pdf-parser skill (prerequisite 1)               │
+│  ① Pick ONE parsing engine (by hardware, no ranking):        │
+│     A. Local MinerU — ~1GB models, offline, extracts images,  │
+│        zero API cost → mineru-pdf-parser skill (route A dep)  │
+│     B. Cloud VLM — zero hardware bar, just an API key         │
+│        → tools/luna_full_transcribe.py (6 workers, ~$0.5/pg)  │
 │  ①b Video/podcast: yt-dlp → ffmpeg audio → faster-whisper    │
 ├─────────────────────────────────────────────────────────────┤
-│  ② Parse PDF → Markdown (or use transcript directly)        │
-│     mineru -p input.pdf -o out -b pipeline                  │
-│     (252 pages ≈ 4-6 min; scanned books go through OCR and    │
-│      are 3-4× slower: 484 pages > 20 min)                    │
+│  ② Get the full-text Markdown                                │
+│     A: mineru -p input.pdf -o out -b pipeline                │
+│        (252 pages ≈ 4-6 min; scanned books 3-4× slower)      │
+│     B: python3 tools/luna_full_transcribe.py book.pdf out     │
+│        (~45s/page × concurrency; full 484-page book: $2.51)   │
 ├─────────────────────────────────────────────────────────────┤
 │  ③ Read the book/transcript (REPL-style, TOC first)         │
 ├─────────────────────────────────────────────────────────────┤
 │  ④ Choose packaging form: cheat-sheet / step-guide / persona │
 ├─────────────────────────────────────────────────────────────┤
-│  ⑤ Generate SKILL.md (distilled rules + concrete values)    │
-│     + archive full text in references/                      │
-│     → MiJi skill (main flow)                  │
+│  ⑤ Choose ONE output (or both):                              │
+│     ⚡ skill: SKILL.md (distilled rules) + references/        │
+│     📚 KB: kb.py add/draft → TOPIC.md + archives + anchors    │
 ├─────────────────────────────────────────────────────────────┤
 │  ⑥ Verify (skill loads + real run) & deliver                │
 └─────────────────────────────────────────────────────────────┘
@@ -68,35 +72,43 @@ MiJi/
 
 ## 📋 Prerequisites (two skills)
 
-| Skill | Purpose | Dependency |
+| Skill / requirement | Purpose | Dependency |
 |-------|---------|------------|
-| **`mineru-pdf-parser`** | MinerU setup, model download (China-network optimized), Apple Silicon tuning, pitfalls | Steps ①/② depend on it |
-| **`MiJi`** | The full 6-step book→skill workflow | The main flow itself |
+| **`mineru-pdf-parser`** | MinerU setup, model download, Apple Silicon tuning, pitfalls | **Route A (local) only**; skip it on the cloud route |
+| **`MiJi`** | The full 6-step book→skill/KB workflow | The main flow itself |
+| Route B requirement | any OpenAI-compatible **vision** endpoint + key (self-hosted relay or official) + `pip install pypdfium2` | Route B (cloud) only |
 
-The main-flow skill **loads `mineru-pdf-parser` first** (Step 1) to get environment & pitfalls before parsing. Install both.
+On route A the main-flow skill **loads `mineru-pdf-parser` first** (Step 1) for environment & pitfalls; route B needs no local models at all.
 
 ## 🚀 Quick Start
 
 ```bash
-# 1. Install MinerU (Python 3.10+, use a dedicated venv)
-python3 -m venv mineru-venv
-mineru-venv/bin/pip install "mineru[core]"
-
-# 2. Download models (~1GB — only 7 sub-paths, NOT the full 10GB repo)
-#    China network: proxy to hf-mirror (6.2MB/s) or modelscope+aria2 (810MB in ~20s)
-#    See mineru-pdf-parser/SKILL.md for the exact file list
-
-# 3. Point ~/mineru.json models-dir.pipeline at your model directory
-
-# 4. Parse a PDF
+# ═══ STEP 1: pick ONE parsing engine ═══
+#
+# 【Route A | local MinerU】 Apple Silicon / GPU, want illustrations, zero API cost:
+python3 -m venv mineru-venv && mineru-venv/bin/pip install "mineru[core]"
+#   download ~1GB of models (7 sub-paths; China: hf-mirror via proxy or modelscope+aria2)
+#   point ~/mineru.json models-dir.pipeline at the model dir, then:
 unset PYTHONPATH
-export MINERU_PROCESSING_WINDOW_SIZE=32   # prevents MPS crash on long docs (Apple Silicon!)
+export MINERU_PROCESSING_WINDOW_SIZE=32        # prevents MPS crash on long docs
 mineru-venv/bin/mineru -p input.pdf -o out -b pipeline
-
-# 5. Drop the two SKILL.md files into your agent's skills dir
-#    (Hermes: ~/.hermes/skills/; other agents see compatibility notes inside)
-
-# 6. Tell your agent: "package this book into a skill"
+#
+# 【Route B | cloud VLM】 zero hardware bar — the primary route for low-spec machines:
+pip install pypdfium2                          # the only dependency
+export VISION_BASE=http://your-endpoint/v1  VISION_KEY=yourkey  VISION_MODEL=your-vision-model
+python3 tools/luna_full_transcribe.py book.pdf out --workers 6     # 6 workers, resumable
+cat out/text/p*.md > book_fulltext.md          # merge pages in order
+#
+# ═══ STEP 2: choose ONE output (or both) ═══
+#
+# Exit 1 ⚡ skill: drop the two SKILL.md files into your agent's skills dir
+#   (Hermes: ~/.hermes/skills/; other agents see notes inside), then say:
+#   "package this book into a skill"
+#
+# Exit 2 📚 knowledge base: ongoing accumulation + full-text search + skill upgrade anytime
+python3 tools/kb.py init
+python3 tools/kb.py add <topic> book_fulltext.md --type book
+python3 tools/kb.py draft <topic>   # then tell your agent: "read the fusion draft, distill TOPIC.md"
 ```
 
 ## ⚠️ Pitfalls Quick Reference (all tested in practice)

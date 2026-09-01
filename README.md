@@ -4,8 +4,8 @@
 
 > 为什么叫「蜜技」？三重谐音：**秘籍**——拿到就能习得的神功；**游戏 cheat code**——输入即生效；**蜜 技**——CC 为她的诗人亲手酿的甜蜜技能 🍯
 >
-> 把一本书/一份 PDF/一段视频变成 AI Agent 可复用的 Skill 的完整流水线：
-> **安装 MinerU（OCR 解析）→ 识别 PDF → 提炼方法论 → 封装成 Skill**
+> 把一本书/一份 PDF/一段视频变成 AI 可复用知识的完整流水线：
+> **解析（本地 MinerU 或 云端 VLM，按你的硬件二选一）→ 提炼方法论 → 封装成 Skill 或 入库知识库**
 >
 > 支持 PDF / 电子书 / **视频 / 播客**（yt-dlp 下载 → faster-whisper 转写 → 同一蒸馏流程）
 >
@@ -52,20 +52,26 @@ MiJi/
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  ① 安装 MinerU + 下载模型（国内网络优化）                      │
-│     → mineru-pdf-parser skill（前置依赖 1）                    │
+│  ① 解析引擎二选一（按硬件条件，无主次）:                       │
+│     A. 本地 MinerU —— 装 ~1GB 模型，离线、出插图、零 API 成本   │
+│        → mineru-pdf-parser skill（路线 A 依赖）                │
+│     B. 云端 VLM —— 零硬件门槛，有 API key 就能跑               │
+│        → tools/luna_full_transcribe.py（6 路并发，~$0.5/页）    │
 │  ①b 视频/播客：yt-dlp 下载 → ffmpeg 抽音频 → faster-whisper 转写 │
 ├─────────────────────────────────────────────────────────────┤
-│  ② 解析 PDF → Markdown（或直接使用转写文本）                   │
-│     mineru -p 输入.pdf -o 输出目录 -b pipeline                │
-│     (252 页 ≈ 4-6 分钟；扫描版走 OCR 慢 3-4 倍：484 页 >20 分钟)  │
+│  ② 得到全文 Markdown                                          │
+│     A: mineru -p 输入.pdf -o 输出目录 -b pipeline              │
+│        (252 页 ≈ 4-6 分钟；扫描版走 OCR 慢 3-4 倍)             │
+│     B: python3 tools/luna_full_transcribe.py 书.pdf 输出目录    │
+│        (~45s/页 × 并发；整本 484 页实测 $2.51 / 零失败)         │
 ├─────────────────────────────────────────────────────────────┤
 │  ③ 通读全书/转写稿（REPL 式分段读，先读目录定骨架）             │
 ├─────────────────────────────────────────────────────────────┤
 │  ④ 判断封装形态：速查式 / 步骤式 / 人物式                      │
 ├─────────────────────────────────────────────────────────────┤
-│  ⑤ 生成 SKILL.md（精炼原则+数值落地）+ 全文存档 references/    │
-│     → MiJi skill（主流程）                      │
+│  ⑤ 产出二选一（或都要）:                                      │
+│     ⚡ skill: SKILL.md（精炼原则+数值落地）+ references/ 存档    │
+│     📚 知识库: kb.py add/draft → TOPIC.md + 全文档案 + 三型锚点  │
 ├─────────────────────────────────────────────────────────────┤
 │  ⑥ 验证（skill_view 加载 + 真实场景实跑）+ 交付                │
 └─────────────────────────────────────────────────────────────┘
@@ -73,35 +79,43 @@ MiJi/
 
 ## 📋 前置依赖（两个 skill）
 
-| Skill | 作用 | 依赖关系 |
+| Skill / 条件 | 作用 | 依赖关系 |
 |-------|------|---------|
-| **`mineru-pdf-parser`** | MinerU 部署、模型下载（国内网络优化）、M1 Mac 调优、踩坑速查 | 主流程 Step ①/② 依赖 |
-| **`MiJi`** | 读书 → 封装 Skill 的 6 步完整流程 | 主流程本体 |
+| **`mineru-pdf-parser`** | MinerU 部署、模型下载（国内网络优化）、Apple Silicon 调优、踩坑速查 | **仅路线 A（本地）依赖**；走云端路线 B 可不装 |
+| **`MiJi`** | 读书 → 封装 Skill / 入库 的 6 步完整流程 | 主流程本体 |
+| 路线 B 条件 | 任一 OpenAI 兼容**视觉**模型端点 + key（自建中转/官方均可）+ `pip install pypdfium2` | 仅路线 B（云端）需要 |
 
-主流程 skill 在 Step 1 会**先加载 `mineru-pdf-parser`** 获取环境与坑，再执行解析。两者必须一起安装。
+走路线 A 时主流程 skill 会**先加载 `mineru-pdf-parser`** 获取环境与坑再解析；走路线 B 无需任何本地模型。
 
 ## 🚀 快速开始
 
 ```bash
-# 1. 安装 MinerU（Python 3.10+，建议独立 venv）
-python3 -m venv mineru-venv
-mineru-venv/bin/pip install "mineru[core]"
-
-# 2. 下载模型（约 1GB，只需 7 个子路径，别拉全量 10GB repo）
-#    国内网络：走代理访问 hf-mirror（6.2MB/s）或 modelscope+aria2（20 秒下 810MB）
-#    详见 mineru-pdf-parser/SKILL.md 的模型文件清单
-
-# 3. 配置 ~/mineru.json 的 models-dir.pipeline 指向模型目录
-
-# 4. 解析 PDF
+# ═══ 第一步：解析引擎二选一 ═══
+#
+# 【路线 A｜本地 MinerU】有 Apple Silicon / GPU，要插图、零 API 成本：
+python3 -m venv mineru-venv && mineru-venv/bin/pip install "mineru[core]"
+#   下载 ~1GB 模型（7 个子路径；国内走代理 hf-mirror 或 modelscope+aria2，见 mineru-pdf-parser/SKILL.md）
+#   配置 ~/mineru.json 的 models-dir.pipeline 后：
 unset PYTHONPATH
-export MINERU_PROCESSING_WINDOW_SIZE=32   # 长文档防 MPS 崩溃（Apple Silicon 关键！）
+export MINERU_PROCESSING_WINDOW_SIZE=32        # 长文档防 MPS 崩溃（Apple Silicon 关键！）
 mineru-venv/bin/mineru -p 输入.pdf -o 输出目录 -b pipeline
-
-# 5. 把生成的两个 SKILL.md 放入你的 Agent 的 skills 目录
-#    （Hermes: ~/.hermes/skills/；其他 Agent 见 MiJi 内的兼容说明）
-
-# 6. 对你的 Agent 说："把这本书封装成 skill"
+#
+# 【路线 B｜云端 VLM】零硬件门槛——低配机/无独显/不想装环境的主力路线：
+pip install pypdfium2                          # 仅此一个依赖
+export VISION_BASE=http://你的端点/v1  VISION_KEY=你的key  VISION_MODEL=你的视觉模型名
+python3 tools/luna_full_transcribe.py 书.pdf 输出目录 --workers 6   # 6 路并发，断点续跑
+cat 输出目录/text/p*.md > 书_fulltext.md       # 按页序合并成全文
+#
+# ═══ 第二步：产出二选一（或都要）═══
+#
+# 出口 1 ⚡ 封装成 skill：把两个 SKILL.md 装进 agent 的 skills 目录
+#   （Hermes: ~/.hermes/skills/；其他 agent 见 MiJi 内兼容说明），然后对它说：
+#   "把这本书封装成 skill"
+#
+# 出口 2 📚 入知识库：持续积累 + 全文检索 + 随时升格 skill
+python3 tools/kb.py init
+python3 tools/kb.py add <主题> 书_fulltext.md --type book
+python3 tools/kb.py draft <主题>    # 之后对 agent 说："通读融合草稿，蒸馏 TOPIC.md"
 ```
 
 ## ⚠️ 关键坑速查（全部实测）

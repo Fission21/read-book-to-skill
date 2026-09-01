@@ -10,13 +10,16 @@ luna_full_transcribe.py — 用 gpt-5.6-luna 并发转写整本 PDF（云端视�
 import os, sys, json, time, base64, argparse, urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-PDF_URL = 'http://127.0.0.1:3000/v1/responses'
-MODEL = 'opencode-go/gpt-5.6-luna'
+PDF_URL = os.environ.get('VISION_BASE', 'http://127.0.0.1:3000').rstrip('/') + '/v1/responses'
+MODEL = os.environ.get('VISION_MODEL', 'opencode-go/gpt-5.6-luna')
 PROMPT = ('逐行完整转写这一页的全部文字（含页眉、页码、脚注和脚注分隔线），'
           '从页面第一行到最后一行，绝对不要省略或提前停止。输出纯 Markdown 正文。')
 
 
 def get_key():
+    env_key = os.environ.get('VISION_KEY')
+    if env_key:
+        return env_key
     env = os.path.expanduser('~/.hermes/.env')
     if os.path.isfile(env):
         for line in open(env, encoding='utf-8', errors='replace'):
