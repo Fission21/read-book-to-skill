@@ -218,6 +218,11 @@ python3 ~/demo/scripts/kb.py export <主题> --name <slug> --desc "<≤60字>"
 - 库根 `~/demo/knowledge-base/`：`AGENTS.md`（外部 AI 读取规范）、`llms.txt`（LLM 站点地图）、`INDEX.md`（自动生成）、`topics/<主题>/{TOPIC.md, metadata.json, merge_draft.md, sources/}`、`exports/`
 - **v2.0 能力**：`kb search 关键词`（纯 Python 全文检索，中文路径安全）；sha1 内容指纹自动去重；每主题 metadata.json（机器可读）；超长源自动生成 `sources/*.toc.md`（章节→行号锚点，REPL 式跳读用，**10 万 token 级源禁止全量读**）
 - **跨主题锚点**：≥2 主题共同出现的关键词，是知识网络的连接点——新源入库后自动重算
+- **跨 AI 蒸馏对比校准（2026-09-01 实测）**：同一本书+同一份蒸馏指令发给不同 AI（如 ChatGPT Pro），对比各自蒸馏稿可校准自家 skill 质量。实测（若米尼 484 页，CC 2.5K 字速查 vs ChatGPT 10K 字分析）：
+  - **CC 短板（学）**：① 概念覆盖 23/34 vs 28/34——军械细节类概念（步兵/骑兵/要塞/渡河/追击/情报/间谍/战略预备队）被速查体裁自然丢掉，若主题需要覆盖面，蒸馏时应显式列出「每章必抓概念清单」而非凭语感 ② 引文核验：速查里凭记忆写的引文要与原文 grep 比对 ③ 可加「编号规则清单」形态（71 条可执行规则 > 散点原则）
+  - **ChatGPT 短板（我方长处）**：① 体积 10K 字 → 违反 MiJi「SKILL.md 7-10KB 速查」铁律的一半精神 ② 结构标题数为 0（纯流水文本，无 markdown 层级），agent 可读性差 ③ 无来源标注体系、无知识库落位（我们的 TOPIC.md 有 frontmatter+metadata+toc 全家桶）
+  - **互补结论**：速查体裁（我们）胜在「可装进 agent 脑子」，分析体裁（ChatGPT）胜在「覆盖面与教学性」——蒸馏后把对方稿件存入 sources/ 作对照样本（本次 qiqi_distill.md 已入库军事主题）
+  - **ChatGPT 自动化实测坑**：上传 940KB md 文件需走隐藏 input[type=file]+DataTransfer 塞 files（drag 事件无效）；ProseMirror 输入用 document.execCommand('insertText')（beforeinput 无效）；长回答会截断，需发「继续」分两段收割；文件 chip 文本（jomini_full）会混入正文需清洗
 - 生命周期：源随时 add → 主题随时 draft/蒸馏 → TOPIC.md 随时可 export 成正式 skill（复制到 ~/.hermes/skills/ 或 skill_manage 创建）
 - 与 skill 的分工：**skill = 高频使用的操作准则；知识库 = 低频但需可查的沉淀**，同一主题两边可共存（skill 放速查，库放全量源）
 
