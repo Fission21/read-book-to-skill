@@ -1,7 +1,7 @@
 ---
 name: MiJi
 description: 主人发 PDF/电子书/视频链接要封装成 skill 时用。MinerU 解析→通读→提炼速查，支持多源融合。
-version: 1.3.0
+version: 1.3.1
 author: CC
 tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合]
 ---
@@ -188,7 +188,10 @@ version: 1.0.0
 references/<书名-slug>.md
 ```
 
-- 把解析出的完整 md **清理后**存入（去图片占位行、去表格噪音、保留全部正文）
+- 把解析出的完整 md **清理后**存入（去表格噪音、去 PDF 水印行，保留全部正文）
+- **图片处理分场景**（2026-09-01 实测修正：旧指导「一律删占位行」不完全对——MinerU 其实把原图切在 `auto/images/`）：
+  - 存入 skill 的 references/（skill_manage 只能写文本）→ 删掉 `![](images/...)` 占位行
+  - 存入知识库 sources/ → **保留链接并拷图**：`cp 输出目录/*/auto/images/ <库>/topics/<主题>/sources/images/`，链接全部复活（Obsidian/VSCode/GitHub 均可渲染原书插图，实测 36/36 可达）
 - 作用：SKILL.md 不够用时按需查阅原文细节
 - 用 `skill_manage(action='write_file', name=..., file_path='references/xxx.md', file_content=...)`
 
@@ -234,12 +237,49 @@ python3 ~/demo/scripts/kb.py export <主题> --name <slug> --desc "<≤60字>"
 - pypdfium2 拆分坑：`import_pages(源文档, [页码列表])`，不能传页对象
 - 丢给子 agent 跑时：每 worker 独立后台进程 + 各自输出目录，通知聚合后按序合并
 
+## 云端视觉识别（VLM 转写模式，2026-09-01 PoC）
+
+带视觉的 LLM（gpt-5.6-luna 等）可直接吃页面截图转写全文，作为 MinerU 的**补充模式**：
+
+```bash
+# 页面 → PNG（pypdfium2，秒级）
+pdf[99].render(scale=2.5).to_pil().save('page.png')
+# → POST /v1/responses（OpenAI Responses 格式，image_url 直接字符串）
+#   max_output_tokens ≥4000（1024 会中途截断！），提示词强调「从第一行到最后一行不要提前停止」
+```
+
+实测（484 页书第 100 页，中文密集版面）：luna ~45s/页完整转写，术语零错，脚注标记保留，个别字比本地 OCR 更准（「不与」vs 误识「不同」）。
+
+| | 本地 MinerU | 云端 VLM 转写 |
+|---|---|---|
+| 速度 | 4-6 分钟/252 页文字版；扫描版 3-4x 慢 | ~45s/页（可多路并发，无本地显存墙） |
+| 版面产物 | md+图片切出+坐标，忠实转写 | 纯文本，**图片/表格结构会丢** |
+| 忠实度 | 傻但忠实（OCR 不会编内容） | 聪明但不忠实（可能顺手「改错」——存档场景要警惕） |
+| 硬件门槛 | 需 ~1GB 本地模型 + Apple Silicon/GPU | **零硬件要求**——有 API key 就能跑，低配机/无独显机的主力路线 |
+| 数据去向 | 全本机 | 页面内容出网 |
+
+**全本对比实测（2026-09-01，《战争艺术概论》484 页扫描版双引擎全跑）**：
+- luna 6 路并发 45min59s（33.8s/页）**484/484 零失败**；MinerU 单进程 22min24s
+- 字符级一致率 **~97%**（10 字滑窗 75.5% 换算），luna 个别难字更准
+- luna 偏差来源：每页页码照录（479 行）、脚注记全（圈号 303 vs 156）、少量润色改写 → 中文量 +6.3%
+- luna **0 图片引用**（MinerU 切出 36 张插图入库）——图版书想保图选本地；纯文字内容两路等价
+- 整本零幻觉元话语（「图中」仅 2 页且语境合理）
+
+**两种引擎，按用户条件选（都是一等公民路线，无主次之分）**：
+- **选 luna/云端 VLM**：电脑没有 GPU / 装不动本地模型 / 只想跑这一次——零硬件门槛，按量付费（全本 484 页实测 $2.51）
+- **选 MinerU/本地**：有 Apple Silicon 或 GPU、要提取插图、想零 API 成本——模型 ~1GB 装本地即用
+- 也可以混用：主力本地 + 难页丢云端补刀（本地 OCR 栽跟头的糊页/艺术字），或云端转写 + 本地补图
+- 图片语义描述（alt-text）：任一引擎的产物都可以再喂视觉模型给插图写描述入库
+
+需要本地模型清单见 mineru-pdf-parser skill。并发转写脚本：`~/demo/scripts/luna_full_transcribe.py`（断点续跑，--workers 可调）。
+
 ## ⚠️ 踩过的坑
 
 | 坑 | 解法 |
 |----|------|
 | skill description 超 60 字符被拒 | 触发词放最前，一句话，≤60 |
-| 全文 md 有图片占位 `![](images/...)` | 存档时删掉（图片在 PDF 里，路径已失效）|
+| 全文 md 有图片占位 `![](images/...)` | 分场景：进 skill references/（纯文本）删占位行；进知识库 sources/ 把 `auto/images/` 拷成 `sources/images/` 让链接复活 |
+| 扫描书每页带水印行（如 "pdfFactory Pro 试用版本创建"） | 归档前 `sed -e '/水印关键词/d'` 清掉——不清理会污染检索命中和两版本 diff 对比 |
 | MinerU 默认窗口 64 长文档崩溃 | `MINERU_PROCESSING_WINDOW_SIZE=32` |
 | PYTHONPATH 污染 mineru venv | 跑前 `unset PYTHONPATH` |
 | yt-dlp 下载视频失败 | 需要代理时 `--proxy <代理地址>`（如 Clash: http://127.0.0.1:7897）；抖音 H5 路由优先 yt-dlp 兜底 |

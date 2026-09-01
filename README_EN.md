@@ -9,7 +9,7 @@
 > Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
 >
 > v1.3.0 adds: **multi-source fusion** (book + video + article → one combined skill) and a **knowledge-base mode** (skip the skill packaging, keep distilling into topic folders with a built-in AI reading protocol); plus **parallel parsing for big files** (measured 2.1×)
-> **Runs fully local**: the OCR / layout-recognition models are installed on YOUR device — book contents never leave the machine (see "Privacy & Local-Only Processing" below)
+> **Two parsing engines**: local MinerU (~1GB models on YOUR device, runs offline) or cloud VLM transcription (zero hardware bar — luna measured $2.51 for a full book). Pick by your hardware, see "Two Parsing Engines" below
 
 This pipeline was proven end-to-end by **CC**, with three case studies:
 
@@ -283,22 +283,32 @@ python3 tools/split_pdf.py input.pdf split-dir 2
 - For scanned tomes only; text-layer PDFs already parse fast (252 pages in 4-6 min) and aren't worth splitting
 - A crashed part can simply be re-run (independent output dirs, idempotent)
 
-## 🔒 Privacy & Local-Only Processing (the OCR / vision models live on YOUR device)
+## 🔀 Two Parsing Engines — Pick by YOUR Hardware (both first-class, no ranking)
 
-This pipeline is **local by default** — suitable for copyrighted books and private material that must never leave the machine:
+The PDF-parsing step offers **two complete routes**, each usable on its own — there is no "primary vs fallback" hierarchy. Choose by your hardware and needs:
+
+| | 🖥 MinerU local | ☁️ luna cloud VLM |
+|---|---|---|
+| Hardware | ~1GB local models (Apple Silicon / GPU preferred) | **Zero hardware bar** — just an API key |
+| Best for | M-series Mac / discrete GPU users, illustration extraction, zero API cost | Low-spec machines / no GPU / no local environment |
+| Speed | 4-6 min per 252 text pages; scanned 3-4× slower (parallel 2.1×) | ~45s/page × concurrency (full 484-page book measured $2.51) |
+| Output | md + **extracted images** + coordinates | text-only md (no images; run local later to extract) |
+| Data flow | all on-device, runs offline | page images go through the API over HTTPS |
+
+**Rule of thumb**: low-spec / no-GPU machine → **luna IS your primary route** (for many users it's the only viable one); have Apple Silicon/GPU → MinerU is cheaper and yields illustrations; mixing also works (local primary + cloud for hard pages).
+
+Where each stage's data lives (transparently listed, no restrictions — user decides):
 
 | Stage | Where it runs | Notes |
 |-------|---------------|-------|
-| **PDF layout & OCR** | **Your device** | MinerU pipeline mode: PP-DocLayoutV2 (layout), PaddleOCR (text recognition), unimernet (formulas), table models — ~1GB of weights installed locally, **runs offline** |
-| Video transcription | Your device | faster-whisper runs locally (CPU is fine); audio is never uploaded |
-| Image extraction | Your device | illustrations are cut out by local models and stored locally |
-| LLM correction / prompt gen | **Optional cloud** | the only step that may touch the network; use local ollama for a fully offline run, or skip it (slightly lower quality) |
-| Distillation itself | Your agent | skill / knowledge-base generation needs no external service |
-
-> Demo 3's book (a publisher's scan of *Précis de l'Art de la Guerre*) was processed entirely on-machine — no page content ever left the computer.
+| PDF layout & OCR (MinerU route) | Your device | pipeline mode: PP-DocLayoutV2 / PaddleOCR / unimernet / table models, ~1GB local weights, **runs offline** |
+| Full-page transcription (luna route) | Cloud API | pages rendered to images, called via HTTPS; use your own relay or any compatible endpoint |
+| Video transcription | Your device | faster-whisper locally (CPU is fine) |
+| LLM correction / prompt gen | local or cloud, both fine | ollama can replace it locally, or skip entirely |
+| Distillation itself | Your agent | needs no external service |
 
 Two notes:
-- MinerU's `hybrid` / VLM engine would invoke a vision-language model (more VRAM / may use network) — **this pipeline always uses `-b pipeline`, the local engine**
+- MinerU's `hybrid` / VLM engine invokes a vision-language model (more VRAM / network) — use `-b pipeline` for a purely offline run
 - faster-whisper downloads its model from HuggingFace on first run (a few hundred MB, one-time), fully offline afterwards
 
 ## 🙏 Dependencies & Acknowledgements
