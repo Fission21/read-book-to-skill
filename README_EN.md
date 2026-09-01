@@ -193,7 +193,7 @@ YouTube link
 484-page scanned PDF
   → MinerU local OCR (22.4 min single-process; or split in 2 + 2 workers → 10.7 min, 2.1×)
   → 6,278-line Markdown + 62 original illustrations → kb.py add military (sha1 dedup)
-  → auto-generated chapter-anchor TOC (heading → line number: jump-read 180K tokens without blowing context)
+  → auto-generated TOC with three anchor types (headings / chapter markers / numbered rules → line numbers: jump-read 180K tokens without blowing context)
   → CC reads the core chapters → distilled TOPIC.md cheat sheet (decisive-point doctrine / three-choice framework / lines of operations)
 ```
 
@@ -258,7 +258,8 @@ knowledge-base/
 ```
 
 - **Interops with other AI tools**: plain markdown + YAML frontmatter — opens directly in Obsidian / VSCode / any renderer; agent tools just read `AGENTS.md` to understand the whole protocol
-- **Long-document strategy**: sources at the 100K-token scale must **never be read whole** — `*.toc.md` gives heading → line-number anchors, paired with `kb.py search` for targeted jump-reading
+- **Core design philosophy: the longer the stronger — as long as it's quickly locatable**. Distilled artifacts have no length cap: as long as an AI can jump to the target via TOC/keywords/line numbers, locating a needle in 100K tokens costs the same as in 10K, and length turns from a liability into an asset. The library therefore consumes long sources only as "TOC/keyword → line number → `read_file(offset)` jump", reserving whole-file reads for the TOPIC.md cheat-sheet layer (≤7KB)
+- **Locatability guarantee: three anchor types in the auto-generated `*.toc.md`** — ① markdown headings ② chapter markers (`第X节` section X / `第X章` chapter X) ③ numbered rules (`NN｜title`, for "71 rules"-style list-form long texts); plus 10 locating keywords auto-injected into the TOC header. Measured: a 10K-char third-party distillation with **zero markdown headings** grew 74 line-number anchors on ingest (random-sampled line numbers all matched verbatim). Pair with `kb.py search` for full-text pinpoint hits
 - **skill vs knowledge base**: a skill = frequently-used operating rules; the knowledge base = low-frequency but searchable sediment. Both can coexist for the same topic, and any TOPIC.md can be `export`ed into a skill at any time
 
 ## ⚡ Parallel Parsing for Big Files (measured 2.1×)
