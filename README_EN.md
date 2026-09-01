@@ -1,4 +1,4 @@
-# MiJi — Turn Books, Videos & Podcasts into Agent Skills
+# MiJi — Turn Books, Videos & Podcasts into Agent Skills & Knowledge Bases
 
 > **🌐 Language / 语言：** [中文](README.md) | [English](README_EN.md)
 

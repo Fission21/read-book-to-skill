@@ -1,12 +1,12 @@
 ---
 name: MiJi
-description: 主人发 PDF/电子书/视频链接要封装成 skill 时用。MinerU 解析→通读→提炼速查，支持多源融合。
-version: 1.3.1
+description: 书/视频/PDF 蒸馏成skill或入库知识库时用。MinerU解析→通读→提炼，支持多源融合。
+version: 1.3.2
 author: CC
 tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合]
 ---
 
-# 读书封装 Skill 流程（Hermes 专属）
+# 读书蒸馏流程（skill 与知识库双出口 · Hermes 专属）
 
 > 2026-08-27 实测跑通：主人发《Refactoring UI》PDF → 封装成 `refactoring-ui-principles` skill。
 > 2026-08-27 新增**视频模式**：yt-dlp 下载 → ffmpeg 抽音频 → faster-whisper 转写 → 同一蒸馏流程。

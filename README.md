@@ -1,4 +1,4 @@
-# MiJi · 蜜技 — 把书、视频、播客酿成 Agent Skill 的流水线
+# MiJi · 蜜技 — 把书、视频、播客酿成 Agent Skill 与知识库的流水线
 
 > **🌐 Language / 语言：** [中文](README.md) | [English](README_EN.md)
 
@@ -30,7 +30,7 @@ MiJi/
 ├── README_EN.md                                 # English version
 ├── skills/
 │   ├── mineru-pdf-parser/SKILL.md               # 【前置依赖 1】MinerU PDF 解析（安装/下载/踩坑）
-│   └── miji/SKILL.md                            # 【主流程】读书/看视频 → 封装 Skill 的流水线
+│   └── miji/SKILL.md                            # 【主流程】读书/看视频 → 封装 Skill 或 入库知识库
 │       └── scripts/
 │           ├── llm_fix.py                       # ASR 转写 LLM 纠错脚本
 │           ├── transcribe_prompt_gen.py         # 从视频标题自动生成转写提示词
