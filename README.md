@@ -255,6 +255,35 @@ mineru-venv/bin/python tools/luna_full_transcribe.py 书.pdf 输出目录 --work
 python3 tools/compare_deep.py
 ```
 
+### 🔀 案例 Demo 五：混合蒸馏——视频 + 书 → 同一主题知识库（2026-09-01）
+
+多源融合的完整实战：**一个视频 + 一本书** → 同一主题「Unix」双源蒸馏。
+
+**输入**：
+- 🎬 AT&T Archives《The UNIX Operating System》(1982, Bell Labs)——YouTube 官方 transcript 直取（字幕优先，零 ASR 零下载，秒完成）
+- 📖 Eric Raymond《The Art of UNIX Programming》中译本——544 页**扫描版** PDF，MinerU 本地 OCR 23 分钟
+
+**混合的关键：两源天然并行**——视频秒完成时书还在 OCR，零互相等待；这正是多源并行的红利（瓶颈异构：视频走网络，书吃 GPU）。
+
+**蒸馏产出 TOPIC.md 里「混合」出来的独有内容**：
+
+1. **双源互补地图**——书是体系，视频是亲历者实证，逐条对照：管道组合（书·组合原则 ↔ Kernighan 现场拼 5 程序跑拼写检查）、文件即字节流（书·文本化章 ↔ Ritchie「文件就是一串字节」+打印机重定向演示）、工具造工具（书·生成原则 ↔ Johnson 讲 VLSI 芯片工具链）
+2. **视频金句 ↔ 书原则互证**——Thompson「重要的是能省掉什么」↔ 吝啬原则；Kernighan「我一行代码都没写，全是现成程序拼的」↔ 组合原则。1972 年宗师原声给 2003 年的书做活注脚
+3. **按决策场景跳查**——12 个真实场景（选数据结构？优化吗？模块怎么切？）每条带源文件行号，配合三型锚点 TOC 秒跳 22 万 token 全文
+
+**流程命令**（复现整条链）：
+
+```bash
+# 视频源：字幕优先（YouTube 页面自带 transcript 时零 ASR）
+python3 tools/kb.py add Unix 视频transcript.txt --type video --name unix-film-1982
+# 书源：扫描版 → MinerU OCR → 清洗水印 → 入库（sha1 去重 + 自动三型锚点 TOC）
+python3 tools/kb.py add Unix 书全文.md --type book --name taup-book
+# 双源融合草稿（交叉主题锚点自动分析）→ agent 通读 → 蒸馏 TOPIC.md
+python3 tools/kb.py draft Unix
+```
+
+融合策略（按源关系自动选择）：本次为**同主题互补型**（书=体系 + 视频=实证）——书章节做骨架，视频做「亲历者实证」小节；冲突观点并列标注来源；详见 skills/miji/SKILL.md「融合策略」表。
+
 ## 📚 知识库形态（v1.3.0 新增）
 
 MiJi 不止能出一次性 skill——同一套「解析 → 蒸馏」管线可以**按主题持续入库**，攒成个人知识库：

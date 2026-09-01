@@ -244,6 +244,35 @@ mineru-venv/bin/python tools/luna_full_transcribe.py book.pdf outdir --workers 6
 python3 tools/compare_deep.py
 ```
 
+### 🔀 Demo 5: hybrid distillation — video + book → one knowledge-base topic (2026-09-01)
+
+Multi-source fusion in full action: **one video + one book** → dual-source distillation under the topic "Unix".
+
+**Inputs**:
+- 🎬 AT&T Archives "The UNIX Operating System" (1982, Bell Labs) — YouTube's official transcript taken directly (subs-first: zero ASR, zero download, instant)
+- 📖 Eric Raymond, *The Art of UNIX Programming* (Chinese ed.) — 544-page **scanned** PDF, local MinerU OCR, 23 min
+
+**The hybrid payoff: the two sources parallelize naturally** — the video finished instantly while the book was still being OCRed; zero mutual waiting. That's the multi-source dividend in action (heterogeneous bottlenecks: video goes over the network, the book eats the GPU).
+
+**What "hybrid" uniquely produces in TOPIC.md**:
+
+1. **A dual-source complementarity map** — the book is the system, the video is first-hand proof, matched line by line: pipes & composition (book's Composition Rule ↔ Kernighan live-gluing a 5-program spell checker), files as byte streams (book's Textuality chapter ↔ Ritchie "a file is just a sequence of bytes" + printer-redirection demo), tools that build tools (book's Generation Rule ↔ Johnson on the VLSI toolchain)
+2. **Video quotes ↔ book principles cross-validated** — Thompson "what matters is what we could leave out" ↔ the Parsimony Rule; Kernighan "I didn't write a single line of code — it's all existing programs glued together" ↔ the Composition Rule. The 1972 masters' own voices become living footnotes to the 2003 book
+3. **Decision-scenario jump table** — 12 real scenarios (which data structure? optimize or not? how to cut modules?), each with source-file line numbers, jumping straight into the 220K-token full text via the three-type-anchor TOC
+
+**Reproduce**:
+
+```bash
+# video source: subs first (zero ASR when the page ships a transcript)
+python3 tools/kb.py add Unix video_transcript.txt --type video --name unix-film-1982
+# book source: scanned → MinerU OCR → strip watermarks → ingest (sha1 dedup + auto 3-type-anchor TOC)
+python3 tools/kb.py add Unix book_fulltext.md --type book --name taup-book
+# dual-source fusion draft (cross-topic anchors auto-analyzed) → agent reads → distills TOPIC.md
+python3 tools/kb.py draft Unix
+```
+
+Fusion strategy (picked by source relationship): this run was **same-topic complementary** (book = system + video = proof) — book chapters form the skeleton, the video becomes "first-hand evidence" sections; conflicting views are listed side by side with sources. See the fusion-strategy table in skills/miji/SKILL.md.
+
 ## 📚 Knowledge-Base Mode (v1.3.0)
 
 MiJi doesn't have to produce one-shot skills — the same parse → distill pipeline can **keep distilling into topic folders**, building a personal knowledge base:
