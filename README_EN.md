@@ -7,11 +7,15 @@
 > A complete pipeline that turns a book / PDF / video into a reusable AI Agent Skill:
 > **Install MinerU (OCR) → Parse PDF → Distill methodology → Package as a Skill**
 > Also supports **video / podcast** (yt-dlp download → faster-whisper transcript → same distillation flow)
+>
+> v1.3.0 adds: **multi-source fusion** (book + video + article → one combined skill) and a **knowledge-base mode** (skip the skill packaging, keep distilling into topic folders with a built-in AI reading protocol); plus **parallel parsing for big files** (measured 2.1×)
+> **Runs fully local**: the OCR / layout-recognition models are installed on YOUR device — book contents never leave the machine (see "Privacy & Local-Only Processing" below)
 
-This pipeline was proven end-to-end by **CC** on 2026-08-27, with two case studies:
+This pipeline was proven end-to-end by **CC**, with three case studies:
 
 1. ***Refactoring UI* (252-page PDF)** → packaged into the `refactoring-ui-principles` skill — validated on **another machine using opencode + GLM 5.3 Flash** with a controlled A/B test (see Demo 1 below)
 2. **YouTube Chinese tech tutorial video (8:45)** → processed via video mode (yt-dlp → faster-whisper → LLM correction) into the `minimax-h3-local-deploy` skill (see Demo 2 below)
+3. ***Précis de l'Art de la Guerre* (Jomini, 484-page scanned PDF)** → knowledge-base topic `military`; also validated **2.1× parallel parsing** (2026-09-01, see Demo 3 below)
 
 ## 📦 Repository Layout
 
@@ -21,13 +25,19 @@ MiJi/
 ├── README_EN.md                                 # English version (this file)
 ├── skills/
 │   ├── mineru-pdf-parser/SKILL.md               # [Prerequisite 1] MinerU PDF parsing (install/download/pitfalls)
-│   └── MiJi/SKILL.md              # [Main flow] book/video → Skill pipeline
-│       └── scripts/llm_fix.py                   # ASR transcript LLM correction script
+│   └── miji/SKILL.md                            # [Main flow] book/video → Skill pipeline
+│       └── scripts/
+│           ├── llm_fix.py                       # ASR transcript LLM correction script
+│           ├── transcribe_prompt_gen.py         # auto-generate transcription hints from the video title
+│           └── merge_sources.py                 # multi-source fusion draft (cross-topic anchors)
 ├── examples/
 │   └── refactoring-ui-principles/               # [Demo 1] PDF-distilled skill
 │       ├── SKILL.md                             #    Refactoring UI design-principles cheat sheet
 │       └── references/refactoring-ui-full.md    #    Full book archive (58 principles)
 │       (Demo 2: the video-distilled minimax-h3-local-deploy skill is published alongside)
+├── tools/
+│   ├── kb.py                                    # knowledge-base CLI (add/search/draft/export)
+│   └── split_pdf.py                             # split a PDF by page ranges (for parallel parsing)
 └── docs/images/                                 # A/B comparison screenshots (no-skill vs skill)
 ```
 
@@ -41,7 +51,8 @@ MiJi/
 ├─────────────────────────────────────────────────────────────┤
 │  ② Parse PDF → Markdown (or use transcript directly)        │
 │     mineru -p input.pdf -o out -b pipeline                  │
-│     (252 pages ≈ 4-6 min: md / json / span.pdf)             │
+│     (252 pages ≈ 4-6 min; scanned books go through OCR and    │
+│      are 3-4× slower: 484 pages > 20 min)                    │
 ├─────────────────────────────────────────────────────────────┤
 │  ③ Read the book/transcript (REPL-style, TOC first)         │
 ├─────────────────────────────────────────────────────────────┤
@@ -99,6 +110,9 @@ mineru-venv/bin/mineru -p input.pdf -o out -b pipeline
 | PYTHONPATH pollutes the mineru venv | `unset PYTHONPATH` before running |
 | Model sha256 verification | HEAD `?download=true` → `x-linked-etag` is the official hash |
 | Skill description >60 chars rejected | Trigger-first, one sentence, ≤60 chars |
+| 4 parallel MinerU workers → MPS memory accumulation crash | Apple Silicon 32GB limit = 2 workers (2.1×, see "Parallel Parsing") |
+| Dragging a PDF into a chat only delivers an icon PNG | That's a placeholder thumbnail — the file itself wasn't uploaded; pass a file path instead |
+| Scanned book parsing feels "too slow" | Not stuck: scanned books run OCR and are 3-4× slower than text-layer PDFs (484 pages > 20 min), or go parallel for 2.1× |
 
 ## 🧪 Case Demo: Refactoring UI → skill (A/B test)
 
@@ -169,7 +183,90 @@ YouTube link
 3. **LLM correction nails it in one pass**: it has world knowledge about ComfyUI and correctly infers "CONVIO的DESTOB的文件夹" should be "COMFYUI的DESKTOP文件夹" — something no ASR model can do
 4. Safety verified: segment count unchanged, character ratio 1.00, timestamps preserved
 
-**Conclusion**: the optimal path for Chinese video distillation is **small fast-transcribe + LLM refine** (2 minutes total), 20× faster than running a bigger model alone while producing higher quality. The correction script is open-sourced at `skills/MiJi/scripts/llm_fix.py`.
+**Conclusion**: the optimal path for Chinese video distillation is **small fast-transcribe + LLM refine** (2 minutes total), 20× faster than running a bigger model alone while producing higher quality. The correction script is open-sourced at `skills/miji/scripts/llm_fix.py`.
+
+### 📚 Demo 3: 484-page scanned book → knowledge base (2026-09-01)
+
+*Précis de l'Art de la Guerre* (Jomini, 484 pages, **scanned PDF without a text layer**):
+
+```
+484-page scanned PDF
+  → MinerU local OCR (22.4 min single-process; or split in 2 + 2 workers → 10.7 min, 2.1×)
+  → 6,278-line Markdown + 62 original illustrations → kb.py add military (sha1 dedup)
+  → auto-generated chapter-anchor TOC (heading → line number: jump-read 180K tokens without blowing context)
+  → CC reads the core chapters → distilled TOPIC.md cheat sheet (decisive-point doctrine / three-choice framework / lines of operations)
+```
+
+Two hard limits validated along the way: **2 workers = 2.1× speedup**; **4 workers crash 2/4** (MPS memory accumulation) — the sweet spot on Apple Silicon 32GB is exactly two parallel workers.
+
+## 📚 Knowledge-Base Mode (v1.3.0)
+
+MiJi doesn't have to produce one-shot skills — the same parse → distill pipeline can **keep distilling into topic folders**, building a personal knowledge base:
+
+```bash
+python3 tools/kb.py init                          # initialize
+python3 tools/kb.py add <topic> <files...>        # ingest from any source (PDF / video transcript / article, sha1 dedup)
+python3 tools/kb.py draft <topic>                 # multi-source fusion draft (cross-topic anchors)
+python3 tools/kb.py search <keyword> [--topic X]  # full-text search (pure Python, CJK-path safe)
+python3 tools/kb.py export <topic> --name <slug>  # promote a topic into a skill folder
+```
+
+Repository layout (all auto-generated / maintained):
+
+```
+knowledge-base/
+├── AGENTS.md                # reading protocol for ANY AI (Claude/GPT/Codex/Cursor…)
+├── llms.txt                 # llmstxt.org-style site map
+├── INDEX.md                 # auto TOC (topic table + cross-topic anchors)
+└── topics/<topic>/
+    ├── TOPIC.md             # distilled cheat sheet (YAML frontmatter; works in Obsidian/Logseq as-is)
+    ├── metadata.json        # machine-readable metadata (source list / sha1 / tokens)
+    └── sources/             # full-text archive + images/ illustrations + *.toc.md chapter anchors
+```
+
+- **Interops with other AI tools**: plain markdown + YAML frontmatter — opens directly in Obsidian / VSCode / any renderer; agent tools just read `AGENTS.md` to understand the whole protocol
+- **Long-document strategy**: sources at the 100K-token scale must **never be read whole** — `*.toc.md` gives heading → line-number anchors, paired with `kb.py search` for targeted jump-reading
+- **skill vs knowledge base**: a skill = frequently-used operating rules; the knowledge base = low-frequency but searchable sediment. Both can coexist for the same topic, and any TOPIC.md can be `export`ed into a skill at any time
+
+## ⚡ Parallel Parsing for Big Files (measured 2.1×)
+
+A few-hundred-page scanned PDF takes 20+ minutes in a single process. Split it and go parallel:
+
+```bash
+# 1. split (pure CPU, seconds)
+python3 tools/split_pdf.py input.pdf split-dir 2
+# 2. launch one MinerU background process per part (each: unset PYTHONPATH + WINDOW_SIZE=32 + its own output dir)
+# 3. merge in order: cat p1/*/auto/*.md p2/*/auto/*.md > merged.md (remember to strip PDF watermark lines)
+```
+
+| Approach | 484-page scanned book, measured |
+|----------|--------------------------------|
+| single process | 22.4 min |
+| **split ×2, 2 workers** | **10.7 min (2.1×)** |
+| split ×4, 4 workers | ❌ 2/4 crashed (MPS memory accumulation) |
+
+- Quality is equivalent: merged output matches the serial run in line count, the split seam is seamless, only ~2% line-level OCR jitter
+- **On Apple Silicon 32GB the safe ceiling is exactly 2 workers** (3 untested — don't push it)
+- For scanned tomes only; text-layer PDFs already parse fast (252 pages in 4-6 min) and aren't worth splitting
+- A crashed part can simply be re-run (independent output dirs, idempotent)
+
+## 🔒 Privacy & Local-Only Processing (the OCR / vision models live on YOUR device)
+
+This pipeline is **local by default** — suitable for copyrighted books and private material that must never leave the machine:
+
+| Stage | Where it runs | Notes |
+|-------|---------------|-------|
+| **PDF layout & OCR** | **Your device** | MinerU pipeline mode: PP-DocLayoutV2 (layout), PaddleOCR (text recognition), unimernet (formulas), table models — ~1GB of weights installed locally, **runs offline** |
+| Video transcription | Your device | faster-whisper runs locally (CPU is fine); audio is never uploaded |
+| Image extraction | Your device | illustrations are cut out by local models and stored locally |
+| LLM correction / prompt gen | **Optional cloud** | the only step that may touch the network; use local ollama for a fully offline run, or skip it (slightly lower quality) |
+| Distillation itself | Your agent | skill / knowledge-base generation needs no external service |
+
+> Demo 3's book (a publisher's scan of *Précis de l'Art de la Guerre*) was processed entirely on-machine — no page content ever left the computer.
+
+Two notes:
+- MinerU's `hybrid` / VLM engine would invoke a vision-language model (more VRAM / may use network) — **this pipeline always uses `-b pipeline`, the local engine**
+- faster-whisper downloads its model from HuggingFace on first run (a few hundred MB, one-time), fully offline afterwards
 
 ## 🙏 Dependencies & Acknowledgements
 
@@ -182,6 +279,7 @@ This pipeline stands on these great open-source projects — thank you to their 
 | **book-to-skill** | https://github.com/virgiliojr94/book-to-skill | Inspiration for book→skill (Copilot/Amp/Claude Code ecosystem; this repo is the Hermes-flavored cheat-sheet variant) |
 | **aria2** | https://github.com/aria2/aria2 | Multi-threaded model download (810MB from modelscope in ~20s) |
 | **ModelScope** | https://github.com/modelscope/modelscope | High-speed model source inside China |
+| **pypdfium2** | https://github.com/pypdfium2-team/pypdfium2 | PDF page splitting (prerequisite for parallel parsing) |
 | **Refactoring UI** | https://refactoringui.com | Validation case (Adam Wathan & Steve Schoger) |
 
 Special thanks:

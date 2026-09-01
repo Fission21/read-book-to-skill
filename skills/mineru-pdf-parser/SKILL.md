@@ -31,7 +31,10 @@ unset PYTHONPATH   # 必须！否则加载 Hermes venv 的包
 
 - `-b pipeline`：本地模型解析（默认 hybrid-engine 需要 VLM 模型，别用）
 - 输出：`输出目录/<文件名>/auto/` 下含 `*.md`、`*_model.json`、`*_span.pdf`、`images/`
-- 252 页书全量解析约 4-6 分钟（M1 Pro）
+- 252 页书全量解析约 4-6 分钟（M1 Pro，**原生文字版**）
+- **扫描版中文书慢 3-4 倍**：走 OCR 逐页识别，实测 484 页扫描书 >20 分钟——属正常，别当卡死杀进程；窗口 32 全程稳定不崩
+- 长书推荐后台跑：任务尾加 `echo "MINERU_EXIT=$?"` 便于判定成功；启动后先确认过了模型加载阶段（早崩都是 PYTHONPATH/模型缺失类），之后等完成通知即可
+- 大文件可拆段并行（2 worker 实测 2.1x，32GB 上限 2 个）：见 MiJi 主 skill「大文件并行解析」与 `tools/split_pdf.py`
 
 ## ⚠️ 关键坑（全部实测踩过）
 

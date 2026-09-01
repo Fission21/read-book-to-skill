@@ -1,7 +1,7 @@
 ---
 name: MiJi
 description: 主人发 PDF/电子书/视频链接要封装成 skill 时用。MinerU 解析→通读→提炼速查，支持多源融合。
-version: 1.2.0
+version: 1.3.0
 author: CC
 tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合]
 ---
@@ -15,7 +15,8 @@ tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合]
 ## 触发条件
 
 - 主人发来 PDF/EPUB/长文档，说「封装成 skill」「提炼成 skill」「读书」「做成 skill」
-- 主人发来 B站/抖音/YouTube/小红书**视频链接**，说「把这个视频蒸馏成 skill」「提取视频内容」
+- 主人发 B站/抖音/YouTube/小红书**视频链接**，说「把这个视频蒸馏成 skill」「提取视频内容」
+- 主人说「**入库**」「存进知识库」「建知识库」「多端蒸馏到一起」→ 知识库形态：`python3 ~/demo/scripts/kb.py add <主题> <文件...>`，库根 `~/demo/knowledge-base/`（详见下方「知识库形态」与 相关/kb.py）
 - 主人要求把一本书/一段视频的方法论固化成可复用的 agent 技能
 
 ## 内容来源（两条路径）
@@ -40,7 +41,7 @@ export MINERU_PROCESSING_WINDOW_SIZE=32   # 长文档防 MPS 崩溃，关键！
 ```
 
 - 输出在 `输出目录/<文件名>/auto/*.md`（161KB 级别的完整 markdown）
-- 252 页书约 4-6 分钟；跑完检查 `EXIT=0` 且 md 非空
+- 252 页书约 4-6 分钟；**扫描版走 OCR 慢 3-4 倍**（484 页扫描书 >20 分钟，正常不是卡死，见 mineru skill 时间校准）；跑完检查 `EXIT=0` 且 md 非空
 - **已是 md/txt 的**：跳过 MinerU，直接读源文件
 
 ### Step 1b — 视频/播客 → 转写文本（视频模式）
@@ -200,6 +201,39 @@ references/<书名-slug>.md
    ln -sfn ~/.hermes/skills/<category>/<slug> ~/Desktop/<名字>-skill
    ```
 
+## 知识库形态（v1.3.0 新增）
+
+MiJi 不止能出一次性 skill——同一套「解析→蒸馏」管线可以**按主题持续入库**，攒成知识库：
+
+```bash
+python3 ~/demo/scripts/kb.py add <主题> <文件...> [--type book|video|article] [--name xxx]
+python3 ~/demo/scripts/kb.py draft <主题>    # 出 merge_draft.md → CC 通读后写 TOPIC.md
+python3 ~/demo/scripts/kb.py list / stats    # INDEX.md 自动目录 + 跨主题锚点
+python3 ~/demo/scripts/kb.py export <主题> --name <slug> --desc "<≤60字>"
+```
+
+- 库根 `~/demo/knowledge-base/`：`AGENTS.md`（外部 AI 读取规范）、`llms.txt`（LLM 站点地图）、`INDEX.md`（自动生成）、`topics/<主题>/{TOPIC.md, metadata.json, merge_draft.md, sources/}`、`exports/`
+- **v2.0 能力**：`kb search 关键词`（纯 Python 全文检索，中文路径安全）；sha1 内容指纹自动去重；每主题 metadata.json（机器可读）；超长源自动生成 `sources/*.toc.md`（章节→行号锚点，REPL 式跳读用，**10 万 token 级源禁止全量读**）
+- **跨主题锚点**：≥2 主题共同出现的关键词，是知识网络的连接点——新源入库后自动重算
+- 生命周期：源随时 add → 主题随时 draft/蒸馏 → TOPIC.md 随时可 export 成正式 skill（复制到 ~/.hermes/skills/ 或 skill_manage 创建）
+- 与 skill 的分工：**skill = 高频使用的操作准则；知识库 = 低频但需可查的沉淀**，同一主题两边可共存（skill 放速查，库放全量源）
+
+## 大文件并行解析（2026-09-01 实测 2.1x）
+
+484 页扫描书《战争艺术概论》A/B 实测：单进程全书 22.4 分钟 → 拆 2 段双进程并行 **10.7 分钟（2.1x）**，两 worker 各占 80-86% CPU，无 OOM；合并文本与串行版 6276 行几乎一致（~2% 行级 OCR 抖动，属正常非确定性），拆分接缝处语义无缝。
+
+```bash
+# 1. 拆分（纯 CPU，秒级）
+~/demo/ai-tools/mineru-venv/bin/python ~/demo/scripts/split_pdf.py 输入.pdf 拆分目录 2
+# 2. N 个后台 worker 并行（每个都 unset PYTHONPATH + WINDOW_SIZE=32）
+# 3. 按序合并: cat p1/*/auto/*.md p2/*/auto/*.md | sed -e '/pdfFactory/d' -e '/fineprint/d' > merged.md
+```
+
+- 适用：扫描版大部头（数百页）；文本原生 PDF 解析本来就快，不值得拆
+- 实测边界：M1 Pro 32GB——**2 worker 安全（2.1x）；4 worker 实测崩 2/4**（各自第二个 32 页窗口批时 MPS 内存累积超限：leaked semaphore + exit 1、无 traceback；幸存的 2 个反而是吃了崩掉进程释放的内存才跑完）。默认 2，3 未测；崩掉的段重跑即可（幂等，输出目录独立）。上 VLM 引擎（hybrid）时别并行（显存更大）
+- pypdfium2 拆分坑：`import_pages(源文档, [页码列表])`，不能传页对象
+- 丢给子 agent 跑时：每 worker 独立后台进程 + 各自输出目录，通知聚合后按序合并
+
 ## ⚠️ 踩过的坑
 
 | 坑 | 解法 |
@@ -214,6 +248,7 @@ references/<书名-slug>.md
 | faster-whisper 首次下载模型卡住 | HF 下载需要网络畅通：有代理就 export HTTPS_PROXY，或设 HF_ENDPOINT=https://hf-mirror.com |
 | 与 book-to-skill（第三方）混淆 | 那个面向 Copilot/Amp/Claude Code，输出 chapters/glossary 结构；本 skill 是 Hermes 专属速查式 |
 | 主人找不到 skill 路径 | skill 根目录是隐藏目录，给桌面快捷方式或 Finder `Cmd+Shift+G` |
+| 主人拖 PDF 进聊天只收到图标 PNG（占位图，文件本体不落盘） | 先确认收到的不是 32KB 级图标缩略图；直接找主人要路径（Finder 右键+Option=拷贝路径），或要 URL；顺手搜 ~/Downloads、~/Desktop 兜底 |
 
 ## 验证过的成品
 
