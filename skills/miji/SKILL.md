@@ -26,6 +26,15 @@ tags: [book, skill, 读书, pdf, video, 提炼, workflow, 多源融合]
 | **PDF/扫描件** | MinerU（见 mineru-pdf-parser）| 完整 markdown |
 | **视频/播客** | yt-dlp + ffmpeg + faster-whisper（见下）| transcript.txt 转写文本 |
 
+**解析路由总表**（OCR 只该花在「像素里的字」上——判断依据是文本层，不是文件格式）：
+
+| 格式 | OCR? | 走法 |
+|------|:---:|------|
+| Word/TXT/MD/HTML/EPUB | ❌ | 直接读，不进 MinerU（OCR 原生文本反而引入识别错误） |
+| PDF 文字版 | ❌ | 入库前 pypdfium2 探测文本层（如 `pdf[50].get_textpage().get_text_range()` 长度>0）；MinerU 走 txt 快速路径或 pdftotext 直抽 |
+| PDF 扫描版/图片型 | ✅ | 必须走 OCR：本地 MinerU 或云端 VLM（luna）二选一 |
+| 视频/音频 | ASR 而非 OCR | YouTube 等先抓官方字幕（`--write-subs`/页面 transcript，零 ASR），无字幕才 whisper |
+
 两条路径的产出都是**纯文本**，之后走同一条蒸馏流程（Step 2 起）。
 
 ## 完整流程（6 步）
